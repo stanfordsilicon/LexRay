@@ -1,0 +1,2 @@
+# This file ensures the cldr_data folder is tracked by git
+# Place your CLDR Excel files (.xlsx) in this directory 
