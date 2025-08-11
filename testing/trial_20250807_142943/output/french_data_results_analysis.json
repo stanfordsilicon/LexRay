@@ -1,0 +1,89 @@
+{
+  "summary": {
+    "total_rows": 6,
+    "successful_english_processing": 6,
+    "successful_target_processing": 6,
+    "english_success_rate": 1.0,
+    "target_success_rate": 1.0
+  },
+  "frequency_analysis": {
+    "english_skeleton_frequencies": {
+      "MMMM d, y": 3,
+      "MMMM d-MMM d, y": 1,
+      "cccc": 1,
+      "MMM d, y": 1
+    },
+    "target_skeleton_frequencies": {
+      "d MMMM y, dd MMMM y": 2,
+      "d MMM y, dd MMM y": 2,
+      "d MMM - d MMM y, d MMM - dd MMM y": 1,
+      "cccc": 1
+    },
+    "english_component_analysis": {
+      "component_frequencies": {
+        "d,": 5,
+        "y": 5,
+        "MMMM": 4,
+        "d-MMM": 1,
+        "cccc": 1,
+        "MMM": 1
+      },
+      "date_element_frequencies": {
+        "MMMM": 4,
+        "d,": 5,
+        "y": 5,
+        "d-MMM": 1,
+        "cccc": 1,
+        "MMM": 1
+      },
+      "punctuation_frequencies": {},
+      "literal_text_frequencies": {},
+      "total_unique_components": 6,
+      "total_literal_texts": 0
+    },
+    "target_component_analysis": {
+      "component_frequencies": {
+        "MMM": 8,
+        "d": 7,
+        "y,": 5,
+        "dd": 5,
+        "y": 5,
+        "MMMM": 4,
+        "-": 2,
+        "cccc": 1
+      },
+      "date_element_frequencies": {
+        "d": 7,
+        "MMMM": 4,
+        "y,": 5,
+        "dd": 5,
+        "y": 5,
+        "MMM": 8,
+        "cccc": 1
+      },
+      "punctuation_frequencies": {
+        "-": 2
+      },
+      "literal_text_frequencies": {},
+      "total_unique_components": 8,
+      "total_literal_texts": 0
+    },
+    "total_english_patterns": 4,
+    "total_target_patterns": 4,
+    "total_rows": 6
+  },
+  "format_analysis": {
+    "english_format_lengths": {
+      "month_wide": 4,
+      "month_abbreviated": 5,
+      "day_wide": 1,
+      "day_abbreviated": 1
+    },
+    "target_format_lengths": {
+      "month_wide": 2,
+      "month_abbreviated": 5,
+      "day_wide": 1,
+      "day_abbreviated": 1
+    }
+  }
+}

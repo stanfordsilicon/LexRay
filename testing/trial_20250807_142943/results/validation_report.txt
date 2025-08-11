@@ -1,0 +1,49 @@
+CLDR Skeleton Validation Report
+========================================
+
+SUMMARY
+----------
+total_rows: 6
+english_accuracy: 0.8333333333333334
+target_accuracy: 0.6666666666666666
+overall_accuracy: 0.75
+english_correct: 5
+target_correct: 4
+
+DETAILED RESULTS
+--------------------
+Row 0:
+  XPATH: //ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']
+  English: Generated='MMMM d, y' vs Verified='MMMM d, y'
+  English Match: True (Similarity: 1.00)
+  Target: Generated='d 'de' MMMM 'de' y, dd 'de' MMMM 'de' y' vs Verified='d 'de' MMMM 'de' y; dd 'de' MMMM 'de' y'
+  Target Match: True (Similarity: 1.00)
+
+Row 1:
+  XPATH: //ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']
+  English: Generated='MMMM d, y' vs Verified='MMMM d, y'
+  English Match: True (Similarity: 1.00)
+  Target: Generated='d 'de' MMMM y, dd 'de' MMMM y' vs Verified='d 'de' MMMM 'de' y; dd 'de' MMMM 'de' y'
+  Target Match: False (Similarity: 0.78)
+
+Row 2:
+  XPATH: //ldml/dates/calendars/calendar[@type='gregorian']/dateTimeFormats/intervalFormats/intervalFormatItem[@id='yMMMd']/greatestDifference[@id='M']
+  English: Generated='MMMM d-MMM d, y' vs Verified='MMMM d-MMM d, y'
+  English Match: True (Similarity: 1.00)
+  Target: Generated='d 'de' MMMM - d 'de' MMMM y, d 'de' MMMM - dd 'de' MMMM y' vs Verified='d 'de' MMMM - d 'de' MMMM y; d 'de' MMMM - dd 'de' MMMM y'
+  Target Match: True (Similarity: 1.00)
+
+Row 3:
+  XPATH: //ldml/dates/calendars/calendar[@type='gregorian']/days/dayContext[@type='stand-alone']/dayWidth[@type='wide']/day[@type='tue']
+  English: Generated='cccc' vs Verified='cccc'
+  English Match: True (Similarity: 1.00)
+  Target: Generated='cccc' vs Verified='cccc'
+  Target Match: True (Similarity: 1.00)
+
+Row 4:
+  XPATH: //ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']
+  English: Generated='MMMM d, y' vs Verified='MMMM d, y'
+  English Match: True (Similarity: 1.00)
+  Target: Generated='d 'de' MMMM 'de' y, dd 'de' MMMM 'de' y' vs Verified='d 'de' MMMM 'de' y; dd 'de' MMMM 'de' y'
+  Target Match: True (Similarity: 1.00)
+

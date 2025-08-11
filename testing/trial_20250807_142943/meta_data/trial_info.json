@@ -1,0 +1,22 @@
+{
+  "trial_id": "trial_20250807_142943",
+  "created_at": "2025-08-07T14:29:43",
+  "description": "Multi-language CLDR skeleton analysis: Spanish, Italian, and French",
+  "languages": ["spanish", "italian", "french"],
+  "input_files": [
+    "spanish_data.csv",
+    "italian_data.csv", 
+    "french_data.csv"
+  ],
+  "parameters": {
+    "cldr_data_path": "/Users/danielargento/Desktop/LexRay/cldr_data",
+    "target_languages": ["spanish", "italian", "french"]
+  },
+  "experiment_goals": [
+    "Compare date pattern differences across Romance languages",
+    "Test literal text handling (Spanish 'de' vs Italian/French direct)",
+    "Validate format length detection across languages",
+    "Assess cross-language skeleton mapping accuracy"
+  ],
+  "notes": "Testing CLDR skeleton conversion across three major Romance languages with varying literal text patterns and format structures."
+} 

@@ -1,0 +1,146 @@
+{
+  "summary": {
+    "total_rows": 6,
+    "english_accuracy": 0.8333333333333334,
+    "target_accuracy": 0.6666666666666666,
+    "overall_accuracy": 0.75,
+    "english_correct": 5,
+    "target_correct": 4
+  },
+  "detailed_results": [
+    {
+      "row_index": 0,
+      "xpath": "//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']",
+      "english_generated": "MMMM d, y",
+      "english_verified": "MMMM d, y",
+      "english_validation": {
+        "exact_match": true,
+        "partial_match": true,
+        "contains_verified": true,
+        "verified_contains_generated": true,
+        "similarity_score": 1.0,
+        "best_match": "MMMM d",
+        "differences": []
+      },
+      "target_generated": "d 'de' MMMM 'de' y, dd 'de' MMMM 'de' y",
+      "target_verified": "d 'de' MMMM 'de' y; dd 'de' MMMM 'de' y",
+      "target_validation": {
+        "exact_match": true,
+        "partial_match": true,
+        "contains_verified": true,
+        "verified_contains_generated": true,
+        "similarity_score": 1.0,
+        "best_match": "d 'de' MMMM 'de' y",
+        "differences": []
+      }
+    },
+    {
+      "row_index": 1,
+      "xpath": "//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']",
+      "english_generated": "MMMM d, y",
+      "english_verified": "MMMM d, y",
+      "english_validation": {
+        "exact_match": true,
+        "partial_match": true,
+        "contains_verified": true,
+        "verified_contains_generated": true,
+        "similarity_score": 1.0,
+        "best_match": "MMMM d",
+        "differences": []
+      },
+      "target_generated": "d 'de' MMMM y, dd 'de' MMMM y",
+      "target_verified": "d 'de' MMMM 'de' y; dd 'de' MMMM 'de' y",
+      "target_validation": {
+        "exact_match": false,
+        "partial_match": false,
+        "contains_verified": false,
+        "verified_contains_generated": false,
+        "similarity_score": 0.7777777777777778,
+        "best_match": "d 'de' MMMM 'de' y",
+        "differences": [
+          "Generated options: [\"d 'de' MMMM y\", \"dd 'de' MMMM y\"]",
+          "Expected options: [\"d 'de' MMMM 'de' y\", \"dd 'de' MMMM 'de' y\"]",
+          "Best match: 'd 'de' MMMM 'de' y' (similarity: 0.78)"
+        ]
+      }
+    },
+    {
+      "row_index": 2,
+      "xpath": "//ldml/dates/calendars/calendar[@type='gregorian']/dateTimeFormats/intervalFormats/intervalFormatItem[@id='yMMMd']/greatestDifference[@id='M']",
+      "english_generated": "MMMM d-MMM d, y",
+      "english_verified": "MMMM d-MMM d, y",
+      "english_validation": {
+        "exact_match": true,
+        "partial_match": true,
+        "contains_verified": true,
+        "verified_contains_generated": true,
+        "similarity_score": 1.0,
+        "best_match": "MMMM d-MMM d",
+        "differences": []
+      },
+      "target_generated": "d 'de' MMMM - d 'de' MMMM y, d 'de' MMMM - dd 'de' MMMM y",
+      "target_verified": "d 'de' MMMM - d 'de' MMMM y; d 'de' MMMM - dd 'de' MMMM y",
+      "target_validation": {
+        "exact_match": true,
+        "partial_match": true,
+        "contains_verified": true,
+        "verified_contains_generated": true,
+        "similarity_score": 1.0,
+        "best_match": "d 'de' MMMM - d 'de' MMMM y",
+        "differences": []
+      }
+    },
+    {
+      "row_index": 3,
+      "xpath": "//ldml/dates/calendars/calendar[@type='gregorian']/days/dayContext[@type='stand-alone']/dayWidth[@type='wide']/day[@type='tue']",
+      "english_generated": "cccc",
+      "english_verified": "cccc",
+      "english_validation": {
+        "exact_match": true,
+        "partial_match": true,
+        "contains_verified": true,
+        "verified_contains_generated": true,
+        "similarity_score": 1.0,
+        "best_match": "cccc",
+        "differences": []
+      },
+      "target_generated": "cccc",
+      "target_verified": "cccc",
+      "target_validation": {
+        "exact_match": true,
+        "partial_match": true,
+        "contains_verified": true,
+        "verified_contains_generated": true,
+        "similarity_score": 1.0,
+        "best_match": "cccc",
+        "differences": []
+      }
+    },
+    {
+      "row_index": 4,
+      "xpath": "//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']",
+      "english_generated": "MMMM d, y",
+      "english_verified": "MMMM d, y",
+      "english_validation": {
+        "exact_match": true,
+        "partial_match": true,
+        "contains_verified": true,
+        "verified_contains_generated": true,
+        "similarity_score": 1.0,
+        "best_match": "MMMM d",
+        "differences": []
+      },
+      "target_generated": "d 'de' MMMM 'de' y, dd 'de' MMMM 'de' y",
+      "target_verified": "d 'de' MMMM 'de' y; dd 'de' MMMM 'de' y",
+      "target_validation": {
+        "exact_match": true,
+        "partial_match": true,
+        "contains_verified": true,
+        "verified_contains_generated": true,
+        "similarity_score": 1.0,
+        "best_match": "d 'de' MMMM 'de' y",
+        "differences": []
+      }
+    }
+  ]
+}

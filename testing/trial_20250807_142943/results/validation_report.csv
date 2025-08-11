@@ -1,0 +1,14 @@
+Metric,Value
+total_rows,6
+english_accuracy,0.8333333333333334
+target_accuracy,0.6666666666666666
+overall_accuracy,0.75
+english_correct,5
+target_correct,4
+
+Row,XPATH,English_Generated,English_Verified,English_Exact_Match,English_Similarity,Target_Generated,Target_Verified,Target_Exact_Match,Target_Similarity
+0,//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard'],"MMMM d, y","MMMM d, y",True,1.00,"d 'de' MMMM 'de' y, dd 'de' MMMM 'de' y",d 'de' MMMM 'de' y; dd 'de' MMMM 'de' y,True,1.00
+1,//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard'],"MMMM d, y","MMMM d, y",True,1.00,"d 'de' MMMM y, dd 'de' MMMM y",d 'de' MMMM 'de' y; dd 'de' MMMM 'de' y,False,0.78
+2,//ldml/dates/calendars/calendar[@type='gregorian']/dateTimeFormats/intervalFormats/intervalFormatItem[@id='yMMMd']/greatestDifference[@id='M'],"MMMM d-MMM d, y","MMMM d-MMM d, y",True,1.00,"d 'de' MMMM - d 'de' MMMM y, d 'de' MMMM - dd 'de' MMMM y",d 'de' MMMM - d 'de' MMMM y; d 'de' MMMM - dd 'de' MMMM y,True,1.00
+3,//ldml/dates/calendars/calendar[@type='gregorian']/days/dayContext[@type='stand-alone']/dayWidth[@type='wide']/day[@type='tue'],cccc,cccc,True,1.00,cccc,cccc,True,1.00
+4,//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard'],"MMMM d, y","MMMM d, y",True,1.00,"d 'de' MMMM 'de' y, dd 'de' MMMM 'de' y",d 'de' MMMM 'de' y; dd 'de' MMMM 'de' y,True,1.00

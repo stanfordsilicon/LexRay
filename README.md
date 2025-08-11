@@ -19,13 +19,16 @@ This tool takes human-readable date expressions in two languages and automatical
 
 ## Features
 
-- **Bilingual Analysis**: Learns date formatting patterns from parallel translations
-- **Smart Tokenization**: Recognizes multi-word date elements and handles complex expressions
-- **Ambiguity Resolution**: Disambiguates tokens that could have multiple meanings (e.g., "J" = January/June/July)
-- **Cultural Format Detection**: Automatically detects word reordering, punctuation differences, and literal text insertions
-- **CLDR Validation**: Cross-references results with official CLDR reference data
-- **Length Classification**: Preserves format length (wide/abbreviated/narrow) across languages
-- **Fuzzy Numeric Matching**: Handles different numeric representations (1-digit vs 2-digit, etc.)
+- **Natural Language Processing**: Converts English date expressions to CLDR skeletons
+- **Cross-Language Mapping**: Maps English skeletons to target language skeletons
+- **Literal Text Handling**: Preserves non-date words in single quotes (e.g., "de" → "'de'")
+- **Compound Token Processing**: Handles attached text and compound words
+- **Ambiguity Resolution**: Interactive disambiguation for ambiguous date elements
+- **Flexible Format Lengths**: Independent format length determination for target languages
+- **Batch Processing**: Process multiple date pairs from CSV files
+- **Statistics & Analysis**: Generate frequency analysis and pattern distribution reports
+- **Validation System**: Compare generated results against verified ground truth skeletons
+- **Trial Management**: Organized timestamped trials with input/output/results/meta_data folders
 
 ## Installation
 

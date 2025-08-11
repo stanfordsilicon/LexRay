@@ -1,0 +1,7 @@
+ENGLISH,TARGET,XPATH
+"January 16, 2006","16 gennaio 2006","//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']"
+"August 10, 2025","10 agosto 2025","//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']"
+"May 5 - Jun 10, 2025","5 maggio - 10 giugno 2025","//ldml/dates/calendars/calendar[@type='gregorian']/dateTimeFormats/intervalFormats/intervalFormatItem[@id='yMMMd']/greatestDifference[@id='M']"
+"Tuesday","martedì","//ldml/dates/calendars/calendar[@type='gregorian']/days/dayContext[@type='stand-alone']/dayWidth[@type='wide']/day[@type='tue']"
+"December 25, 2024","25 dicembre 2024","//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']"
+"Mar 15, 2023","15 marzo 2023","//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='medium']/dateFormat[@type='standard']/pattern[@type='standard']" 

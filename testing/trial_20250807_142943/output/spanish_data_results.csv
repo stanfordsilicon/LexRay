@@ -1,0 +1,7 @@
+ENGLISH_SKELETON,TARGET_SKELETON,XPATH
+"MMMM d, y","d 'de' MMMM 'de' y, dd 'de' MMMM 'de' y",//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']
+"MMMM d, y","d 'de' MMMM y, dd 'de' MMMM y",//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']
+"MMMM d-MMM d, y","d 'de' MMMM - d 'de' MMMM y, d 'de' MMMM - dd 'de' MMMM y",//ldml/dates/calendars/calendar[@type='gregorian']/dateTimeFormats/intervalFormats/intervalFormatItem[@id='yMMMd']/greatestDifference[@id='M']
+cccc,cccc,//ldml/dates/calendars/calendar[@type='gregorian']/days/dayContext[@type='stand-alone']/dayWidth[@type='wide']/day[@type='tue']
+"MMMM d, y","d 'de' MMMM 'de' y, dd 'de' MMMM 'de' y",//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='long']/dateFormat[@type='standard']/pattern[@type='standard']
+"MMM d, y","d 'de' MMMM y, dd 'de' MMMM y",//ldml/dates/calendars/calendar[@type='gregorian']/dateFormats/dateFormatLength[@type='medium']/dateFormat[@type='standard']/pattern[@type='standard']
