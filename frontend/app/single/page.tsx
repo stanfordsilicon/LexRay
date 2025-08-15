@@ -15,6 +15,7 @@ export default function SingleIngestion() {
   const [englishDate, setEnglishDate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Existing CLDR
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
@@ -36,6 +37,7 @@ export default function SingleIngestion() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setResults(null);
 
     const english = englishDate.trim();
     if (!english) {
@@ -43,53 +45,64 @@ export default function SingleIngestion() {
       return;
     }
 
-    if (activeTab === "existing") {
-      if (!selectedExistingLanguage.trim() || !existingTranslation.trim()) {
-        setError("Please choose a CLDR language and enter the translation.");
-        return;
-      }
-      const payload = {
-        mode: "existing",
-        englishDate: english,
-        language: selectedExistingLanguage.trim(),
-        translation: existingTranslation.trim(),
-      };
-      console.log("Submitting:", payload);
-      setResults(payload);
-      return;
-    }
+    try {
+      setSubmitting(true);
+      const form = new FormData();
 
-    if (activeTab === "new") {
-      if (!customLanguageName.trim() || !customFile || !newTranslation.trim()) {
-        setError("Please provide a language name, upload the spreadsheet, and enter the translation.");
-        return;
+      if (activeTab === "english") {
+        form.append("mode", "single-english");
+        form.append("english", english);
+      } else if (activeTab === "existing") {
+        if (!selectedExistingLanguage.trim() || !existingTranslation.trim()) {
+          setError("Please choose a CLDR language and enter the translation.");
+          setSubmitting(false);
+          return;
+        }
+        form.append("mode", "single-cldr");
+        form.append("english", english);
+        form.append("language", selectedExistingLanguage.trim());
+        form.append("translation", existingTranslation.trim());
+      } else {
+        if (!customLanguageName.trim() || !customFile || !newTranslation.trim()) {
+          setError("Please provide language name, spreadsheet, and translation.");
+          setSubmitting(false);
+          return;
+        }
+        form.append("mode", "single-new");
+        form.append("english", english);
+        form.append("language", customLanguageName.trim());
+        form.append("translation", newTranslation.trim());
+        form.append("elements_csv", customFile);
       }
-      const payload = {
-        mode: "new",
-        englishDate: english,
-        language: customLanguageName.trim(),
-        translation: newTranslation.trim(),
-        hasCustomFile: true,
-        customFileName: customFile.name,
-      };
-      console.log("Submitting:", payload);
-      setResults(payload);
-      return;
-    }
 
-    // English only
-    const payload = {
-      mode: "english",
-      englishDate: english,
-    };
-    console.log("Submitting:", payload);
-    setResults(payload);
+      const res = await fetch("/api/process", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Processing failed");
+      }
+      setResults(data);
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const TabButton = ({ tab, label }: { tab: TabKey; label: string }) => (
     <button
       type="button"
-      onClick={() => setActiveTab(tab)}
+      onClick={() => {
+        setActiveTab(tab);
+        // Clear form fields when switching tabs
+        setEnglishDate("");
+        setSelectedExistingLanguage("");
+        setExistingTranslation("");
+        setCustomLanguageName("");
+        setCustomFile(null);
+        setNewTranslation("");
+        setError(null);
+        setResults(null);
+      }}
       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
         activeTab === tab
           ? "bg-indigo-200 text-indigo-900"
@@ -116,7 +129,7 @@ export default function SingleIngestion() {
           <div className="flex gap-2">
             <TabButton tab="english" label="English" />
             <TabButton tab="existing" label="CLDR language" />
-            <TabButton tab="new" label="Non-CLDR Language" />
+            <TabButton tab="new" label="Non-CLDR language" />
           </div>
 
           {error && (
@@ -152,7 +165,7 @@ export default function SingleIngestion() {
                     onChange={(e) => setSelectedExistingLanguage(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
-                    <option value="">None</option>
+                    <option value="">Choose language</option>
                     {availableLanguages.map((lang) => (
                       <option key={lang} value={lang}>
                         {lang}
@@ -224,16 +237,20 @@ export default function SingleIngestion() {
 
             <button
               type="submit"
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-60"
+              disabled={submitting}
             >
-              Convert to CLDR Skeleton
+              {submitting ? "Processing..." : "Convert to CLDR Skeleton"}
             </button>
           </form>
 
-          {results && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-md">
-              <h3 className="font-medium text-gray-900 mb-2">Submission preview:</h3>
-              <pre className="text-sm text-gray-700">{JSON.stringify(results, null, 2)}</pre>
+          {results && !results.error && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-md text-sm text-gray-800">
+              {results.mode === "english" ? (
+                <div>English skeleton: {results.english_skeleton}</div>
+              ) : (
+                <div>Target skeletons: {Array.isArray(results.target_skeletons) ? results.target_skeletons.join(", ") : String(results.target_skeletons)}</div>
+              )}
             </div>
           )}
         </div>

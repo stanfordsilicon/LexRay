@@ -55,7 +55,7 @@ def semantic_tokenize(expression, date_dict, lexicon):
     # Define patterns
     punctuation_pattern = r'[/,\.\-–—]'
     number_pattern = r'\d+'
-    word_pattern = r'[^\s/,\.\-–—\d]+'  # Match word characters (not whitespace, punctuation, or digits)
+    word_pattern = r'[a-zA-Z]+'  # Match word characters (letters only)
 
     tokens = []
     i = 0
@@ -114,35 +114,23 @@ def semantic_tokenize(expression, date_dict, lexicon):
             i += len(number)
             continue
 
-        # Check for date elements (longest match first)
-        found_match = False
-        for date_element in unique_date_elements:
-            if expression[i:].lower().startswith(date_element.lower()):
-                # Verify word boundaries (don't match partial words)
-                start_pos = i
-                end_pos = i + len(date_element)
-
-                # Check start boundary
-                if start_pos > 0 and expression[start_pos-1].isalpha():
-                    continue
-
-                # Check end boundary
-                if end_pos < len(expression) and expression[end_pos].isalpha():
-                    continue
-
-                # Found valid date element match
-                tokens.append(expression[start_pos:end_pos])
-                i = end_pos
-                found_match = True
-                break
-
-        if not found_match:
-            # Check for complete words that might be compound tokens
-            word_match = regex.match(word_pattern, expression[i:])
-            if word_match:
-                word = word_match.group()
-                
-                # Try to break down compound words into date elements, numbers, and literals
+        # First, try to match complete words (including non-date words like "de")
+        word_match = regex.match(word_pattern, expression[i:])
+        if word_match:
+            word = word_match.group()
+            
+            # Check if this word is a date element
+            is_date_element = False
+            for date_element in unique_date_elements:
+                if word.lower() == date_element.lower():
+                    # Found valid date element match
+                    tokens.append(word)
+                    i += len(word)
+                    is_date_element = True
+                    break
+            
+            if not is_date_element:
+                # Not a date element - try to break down compound words
                 compound_parts = break_down_compound_word(word, unique_date_elements)
                 
                 if len(compound_parts) > 1:
@@ -159,9 +147,40 @@ def semantic_tokenize(expression, date_dict, lexicon):
                     tokens.append(word)
                 
                 i += len(word)
-            else:
-                # Single character fallback (for unusual characters)
+            continue
+
+        # Check for date elements (longest match first) - for cases where date elements
+        # might be embedded in compound words or have special formatting
+        found_match = False
+        for date_element in unique_date_elements:
+            if expression[i:].lower().startswith(date_element.lower()):
+                # Verify word boundaries (don't match partial words at start/end)
+                start_pos = i
+                end_pos = i + len(date_element)
+
+                # Check start boundary
+                if start_pos > 0 and expression[start_pos-1].isalpha():
+                    continue
+
+                # Note: We intentionally allow a following letter so that
+                # shorter forms can match inside longer words when no longer
+                # form exists in the input (e.g., 'oct' in 'octre').
+
+                # Found valid date element match
+                tokens.append(expression[start_pos:end_pos])
+                i = end_pos
+                found_match = True
+                break
+
+        if not found_match:
+            # Check for any remaining non-whitespace characters as literal
+            remaining_chars = expression[i:].strip()
+            if remaining_chars:
+                # Take the first non-whitespace character as literal
                 tokens.append(expression[i])
+                i += 1
+            else:
+                # Skip any remaining whitespace
                 i += 1
 
     return tokens
@@ -203,7 +222,9 @@ def break_down_compound_word(word, date_elements):
             # Check if this date element matches at current position
             if (i + len(date_element) <= len(word) and 
                 word[i:i+len(date_element)].lower() == date_element.lower()):
-                
+                # Accept matches even if a letter follows. Longest-match-first
+                # ensures the widest form wins; if not present, shorter forms
+                # like 'oct' can still match in 'octre'.
                 parts.append(('date', word[i:i+len(date_element)]))
                 i += len(date_element)
                 found_match = True
@@ -247,5 +268,4 @@ def break_down_compound_word(word, date_elements):
                 literal_text = word[i:]
                 parts.append(('literal', literal_text))
                 i = len(word)
-    
-    return parts if len(parts) > 1 else [('literal', word)] 
+    return parts if len(parts) > 1 else [('literal', word)]

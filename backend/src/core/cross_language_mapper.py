@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 """
 Cross-language mapping utilities
@@ -48,7 +49,11 @@ def map_english_to_target_skeleton(english_tokens, english_skeleton, target_toke
     # Track spacing between tokens in the original expression
     current_pos = 0
     for i, token in enumerate(target_tokens):
-        token_start = original_target_expression.find(token, current_pos)
+        # Handle ATTACHED tokens
+        actual_token = token[9:] if token.startswith("ATTACHED:") else token
+        
+        # Find the actual token in the original expression
+        token_start = original_target_expression.find(actual_token, current_pos)
         
         if i > 0:
             # Check if there's a space before this token
@@ -57,18 +62,18 @@ def map_english_to_target_skeleton(english_tokens, english_skeleton, target_toke
             spacing_info.append({
                 'token': token,
                 'start': token_start,
-                'end': token_start + len(token),
+                'end': token_start + len(actual_token),
                 'has_space_before': has_space_before
             })
         else:
             spacing_info.append({
                 'token': token,
                 'start': token_start,
-                'end': token_start + len(token),
+                'end': token_start + len(actual_token),
                 'has_space_before': False
             })
         
-        current_pos = token_start + len(token)
+        current_pos = token_start + len(actual_token)
     
     print(f"Spacing info: {spacing_info}")
     

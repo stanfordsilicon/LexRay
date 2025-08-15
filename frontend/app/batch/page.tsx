@@ -3,6 +3,81 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+// CSV Preview Component
+const CSVPreview = ({ csvContent }: { csvContent: string }) => {
+  const [rows, setRows] = useState<string[][]>([]);
+  const [headers, setHeaders] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (csvContent) {
+      // Parse CSV content
+      const lines = csvContent.trim().split('\n');
+      if (lines.length > 0) {
+        // Parse headers (first line)
+        const headerRow = parseCSVLine(lines[0]);
+        setHeaders(headerRow);
+        
+        // Parse data rows
+        const dataRows = lines.slice(1).map(line => parseCSVLine(line));
+        setRows(dataRows);
+      }
+    }
+  }, [csvContent]);
+
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current.trim());
+    return result;
+  };
+
+  if (rows.length === 0) {
+    return <div className="text-gray-500">No data to preview</div>;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+        <thead>
+          <tr className="bg-gray-50">
+            {headers.map((header, index) => (
+              <th key={index} className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b border-gray-200">
+                {header.replace(/_/g, ' ')}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, rowIndex) => (
+            <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+              {row.map((cell, cellIndex) => (
+                <td key={cellIndex} className="px-4 py-2 text-sm text-gray-900 border-b border-gray-200">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 type LanguageResponse = { languages: string[] };
 
 type TabKey = "english" | "cldr" | "noncldr";
@@ -47,52 +122,62 @@ export default function BatchIngestion() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setResults(null);
 
-    if (activeTab === "english") {
-      if (!englishListFile) {
-        setError("Please upload the CSV of English expressions.");
-        return;
-      }
+    try {
       setIsProcessing(true);
-      setTimeout(() => {
-        setIsProcessing(false);
-        setResults({ mode: "english", englishListFile: englishListFile.name });
-      }, 1200);
-      return;
-    }
+      const form = new FormData();
 
-    if (activeTab === "cldr") {
-      if (!selectedLanguage || !bilingualPairsFile) {
-        setError("Please choose a CLDR language and upload the bilingual CSV.");
-        return;
+      if (activeTab === "english") {
+        if (!englishListFile) {
+          setError("Please upload the CSV of English expressions.");
+          setIsProcessing(false);
+          return;
+        }
+        form.append("mode", "batch-english");
+        form.append("csv", englishListFile);
+      } else if (activeTab === "cldr") {
+        if (!selectedLanguage || !bilingualPairsFile) {
+          setError("Please choose a CLDR language and upload the bilingual CSV.");
+          setIsProcessing(false);
+          return;
+        }
+        form.append("mode", "batch-cldr");
+        form.append("language", selectedLanguage);
+        form.append("csv", bilingualPairsFile);
+      } else {
+        if (!customLanguageName || !dateElementsFile || !bilingualPairsFile) {
+          setError("Please provide language name, date elements spreadsheet, and bilingual CSV.");
+          setIsProcessing(false);
+          return;
+        }
+        form.append("mode", "batch-noncldr");
+        form.append("language", customLanguageName);
+        form.append("elements_csv", dateElementsFile);
+        form.append("pairs_csv", bilingualPairsFile);
       }
-      setIsProcessing(true);
-      setTimeout(() => {
-        setIsProcessing(false);
-        setResults({
-          mode: "cldr",
-          language: selectedLanguage,
-          pairsFile: bilingualPairsFile.name,
-        });
-      }, 1200);
-      return;
-    }
 
-    // non-CLDR
-    if (!customLanguageName || !dateElementsFile || !bilingualPairsFile) {
-      setError("Please provide language name, date elements spreadsheet, and bilingual CSV.");
-      return;
-    }
-    setIsProcessing(true);
-    setTimeout(() => {
+      const res = await fetch("/api/process", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Processing failed");
+      }
+      setResults(data);
+      // If CSV content is provided, trigger a download
+      if (data.csv_content) {
+        const blob = new Blob([data.csv_content], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = data.suggested_filename || "results.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong");
+    } finally {
       setIsProcessing(false);
-      setResults({
-        mode: "noncldr",
-        language: customLanguageName,
-        dateElementsFile: dateElementsFile.name,
-        pairsFile: bilingualPairsFile.name,
-      });
-    }, 1200);
+    }
   };
 
   return (
@@ -111,7 +196,7 @@ export default function BatchIngestion() {
           <div className="flex gap-2">
             <TabButton tab="english" label="English" />
             <TabButton tab="cldr" label="CLDR language" />
-            <TabButton tab="noncldr" label="Non-CLDR Language" />
+            <TabButton tab="noncldr" label="Non-CLDR language" />
           </div>
 
           {error && (
@@ -153,7 +238,7 @@ export default function BatchIngestion() {
                     onChange={(e) => setSelectedLanguage(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
-                    <option value="">None</option>
+                    <option value="">Choose language</option>
                     {availableLanguages.map((lang) => (
                       <option key={lang} value={lang}>
                         {lang}
@@ -205,7 +290,7 @@ export default function BatchIngestion() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   />
                   <p className="text-sm text-gray-600 mt-2">
-                    Use the same template as single processing: <a className="text-blue-600 hover:underline" href="/cldr_template.csv" download>CLDR template (CSV)</a>
+                    Download template: <a className="text-blue-600 hover:underline" href="/cldr_template.csv" download>CLDR template (CSV)</a>
                   </p>
                 </div>
                 <div>
@@ -220,7 +305,7 @@ export default function BatchIngestion() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <p className="text-sm text-gray-600 mt-2">
-                    Use the same template as the CLDR tab: <a className="text-blue-600 hover:underline" href="/batch_bilingual_template.csv" download>English, translation pairs (CSV)</a>
+                    Download template: <a className="text-blue-600 hover:underline" href="/batch_bilingual_template.csv" download>English, translation pairs (CSV)</a>
                   </p>
                 </div>
               </>
@@ -235,19 +320,10 @@ export default function BatchIngestion() {
             </button>
           </form>
 
-          {isProcessing && (
-            <div className="mt-6 p-4 bg-blue-50 rounded-md">
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                <span className="text-blue-700">Processing batch...</span>
-              </div>
-            </div>
-          )}
-
-          {results && (
+          {results && !results.error && results.csv_content && (
             <div className="mt-6 p-4 bg-gray-50 rounded-md">
-              <h3 className="font-medium text-gray-900 mb-2">Submission preview:</h3>
-              <pre className="text-sm text-gray-700">{JSON.stringify(results, null, 2)}</pre>
+              <h3 className="font-medium text-gray-900 mb-4">Results:</h3>
+              <CSVPreview csvContent={results.csv_content} />
             </div>
           )}
         </div>
