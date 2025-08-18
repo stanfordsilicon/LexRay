@@ -53,7 +53,7 @@ def semantic_tokenize(expression, date_dict, lexicon):
             unique_date_elements.append(element)
 
     # Define patterns
-    punctuation_pattern = r'[/,\.\-–—]'
+    punctuation_pattern = r'[/,\.\-–—،፣]'  # Added Arabic comma ، and Amharic comma ፣
     number_pattern = r'\d+'
     word_pattern = r'[a-zA-Z]+'  # Match word characters (letters only)
 
@@ -68,7 +68,7 @@ def semantic_tokenize(expression, date_dict, lexicon):
         if i >= len(expression):
             break
 
-        # Check for punctuation
+        # Check for punctuation (including Arabic and Amharic commas)
         if regex.match(punctuation_pattern, expression[i]):
             tokens.append(expression[i])
             i += 1
@@ -86,7 +86,7 @@ def semantic_tokenize(expression, date_dict, lexicon):
                 not expression[number_end].isspace()):
                 
                 # This might be a compound token like "16de" - find the full word
-                word_match = regex.match(r'\d+[^\s/,\.\-–—]+', expression[i:])
+                word_match = regex.match(r'\d+[^\s/,\.\-–—،፣]+', expression[i:])
                 if word_match:
                     compound_word = word_match.group()
                     
@@ -114,12 +114,38 @@ def semantic_tokenize(expression, date_dict, lexicon):
             i += len(number)
             continue
 
-        # First, try to match complete words (including non-date words like "de")
-        word_match = regex.match(word_pattern, expression[i:])
+        # Check for multi-word date elements first (longest match)
+        found_multi_word = False
+        for date_element in unique_date_elements:
+            if ' ' in date_element:  # Multi-word elements
+                if expression[i:].lower().startswith(date_element.lower()):
+                    # Verify word boundaries
+                    start_pos = i
+                    end_pos = i + len(date_element)
+                    
+                    # Check start boundary
+                    if start_pos > 0 and expression[start_pos-1].isalpha():
+                        continue
+                    
+                    # Check end boundary
+                    if end_pos < len(expression) and expression[end_pos].isalpha():
+                        continue
+                    
+                    # Found valid multi-word date element
+                    tokens.append(expression[start_pos:end_pos])
+                    i = end_pos
+                    found_multi_word = True
+                    break
+        
+        if found_multi_word:
+            continue
+
+        # Check for single words (including abbreviated forms with periods)
+        word_match = regex.match(r'[a-zA-Z]+\.?', expression[i:])  # Allow periods after words
         if word_match:
             word = word_match.group()
             
-            # Check if this word is a date element
+            # Check if this word (with or without period) is a date element
             is_date_element = False
             for date_element in unique_date_elements:
                 if word.lower() == date_element.lower():

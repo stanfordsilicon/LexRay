@@ -13,22 +13,84 @@ import regex
 from .constants import ENGLISH_DATE_DICT, MONTH_INDEXING, DAY_INDEXING, TOKEN_PATTERN, SKELETON_CODES
 
 
-def map_english_to_target_skeleton(english_tokens, english_skeleton, target_tokens, target_date_dict, ambiguities, original_target_expression=None):
+def validate_english_date_values(english_tokens, english_skeleton):
     """
-    Main function to map English skeleton to target language skeleton.
-    Now handles literal text by wrapping it in single quotes and preserves original spacing.
+    Validate that numeric date values in English expression are within valid ranges.
     
     Args:
-        english_tokens (list): English tokens
-        english_skeleton (str): English skeleton string
-        target_tokens (list): Target language tokens
+        english_tokens (list): Tokenized English expression
+        english_skeleton (str): English skeleton pattern
+        
+    Raises:
+        ValueError: If month > 12 or day > 31
+    """
+    import regex
+    
+    # Tokenize the skeleton to get element positions
+    pattern = r'[\p{L}\p{M}]+\.?|\p{N}+|[/,\.\-–—،፣]'
+    skeleton_tokens = regex.findall(pattern, english_skeleton)
+    
+    # Extract numeric tokens and their corresponding skeleton elements
+    numeric_tokens = []
+    skeleton_elements = []
+    
+    for i, token in enumerate(english_tokens):
+        if token.isdigit() and i < len(skeleton_tokens):
+            numeric_tokens.append((i, int(token)))
+            skeleton_elements.append(skeleton_tokens[i])
+    
+    # Check for range expressions (e.g., M/d/y-M/d/y)
+    if '-' in english_skeleton or '–' in english_skeleton:
+        # Split by dash and validate each side
+        sides = english_skeleton.replace('–', '-').split('-')
+        if len(sides) == 2:
+            for side_idx, side_skeleton in enumerate(sides):
+                # Find numeric tokens that correspond to this side
+                side_numeric = []
+                side_skeleton_elements = []
+                
+                # This is a simplified approach - in practice, we'd need to map tokens to sides
+                # For now, we'll validate all numeric tokens
+                for token_pos, value in numeric_tokens:
+                    if token_pos < len(skeleton_elements):
+                        skeleton_element = skeleton_elements[token_pos]
+                        if skeleton_element.startswith('M') and value > 12:
+                            raise ValueError(f"Invalid month value: {value} (must be 1-12) in side {side_idx + 1}")
+                        if skeleton_element.startswith('d') and value > 31:
+                            raise ValueError(f"Invalid day value: {value} (must be 1-31) in side {side_idx + 1}")
+    else:
+        # Single date expression - validate normally
+        for token_pos, value in numeric_tokens:
+            if token_pos < len(skeleton_elements):
+                skeleton_element = skeleton_elements[token_pos]
+                if skeleton_element.startswith('M') and value > 12:
+                    raise ValueError(f"Invalid month value: {value} (must be 1-12)")
+                if skeleton_element.startswith('d') and value > 31:
+                    raise ValueError(f"Invalid day value: {value} (must be 1-31)")
+
+
+def map_english_to_target_skeleton(english_tokens, english_skeleton, target_tokens, target_date_dict, ambiguities=None, original_target_expression=None):
+    """
+    Map English date expression to target language skeleton.
+    
+    Args:
+        english_tokens (list): Tokenized English expression
+        english_skeleton (str): English skeleton pattern
+        target_tokens (list): Tokenized target language expression
         target_date_dict (dict): Target language date dictionary
         ambiguities (list): Ambiguity resolution data
-        original_target_expression (str, optional): Original target expression for accurate spacing analysis
+        original_target_expression (str): Original target expression for error messages
         
     Returns:
-        list: List of possible target language skeleton strings
+        list: List of valid target skeleton strings
     """
+    # Validate English date values first
+    validate_english_date_values(english_tokens, english_skeleton)
+    
+    # Initialize variables
+    if ambiguities is None:
+        ambiguities = []
+    
     print(f"Target tokenized: {target_tokens}")
     print(f"English skeleton: {english_skeleton}")
     
@@ -94,7 +156,7 @@ def map_english_to_target_skeleton(english_tokens, english_skeleton, target_toke
         
         if token.isnumeric():
             categorized_target_tokens.append(('numeric', token, spacing))
-        elif token in [",", "/", "-", "–", "."]:
+        elif token in [",", "/", "-", "–", ".", "،", "؛", "؟", "！", "？", "。", "ฯ", "ๆ", "־", "፣", "።", "፤", "፥", "፦", "፧", "፨"]:
             categorized_target_tokens.append(('punctuation', token, spacing))
         elif token in target_date_lexicon:
             categorized_target_tokens.append(('date_element', token, spacing))
@@ -177,9 +239,11 @@ def map_english_to_target_skeleton(english_tokens, english_skeleton, target_toke
                         # Define skeleton codes for each format length
                         # Use M codes for formatting context (months within dates)
                         # Use L codes for standalone context (months by themselves)
+                        # Use E codes for formatting context (days within dates)
+                        # Use c codes for standalone context (days by themselves)
                         format_skeleton_map = {
                             'mon': {'nar': 'M', 'abb': 'MMM', 'wid': 'MMMM', 'sho': 'MMM'},
-                            'day': {'nar': 'c', 'abb': 'ccc', 'wid': 'cccc', 'sho': 'ccc'}
+                            'day': {'nar': 'E', 'abb': 'EEE', 'wid': 'EEEE', 'sho': 'EEE'}
                         }
                         
                         if base_category in format_skeleton_map:
