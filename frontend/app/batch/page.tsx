@@ -46,6 +46,52 @@ const CSVPreview = ({ csvContent }: { csvContent: string }) => {
     return result;
   };
 
+  // Function to render skeleton options with hover highlighting
+  const renderSkeletonOptions = (skeletonText: string, headerName: string) => {
+    // Check if this is a target skeleton column
+    const isTargetSkeleton = headerName.toLowerCase().includes('target') && headerName.toLowerCase().includes('skeleton');
+    
+    if (isTargetSkeleton && skeletonText && skeletonText !== 'ERROR') {
+      // Split skeleton options by "; " (semicolon + space) which is how the backend joins them
+      const initialOptions = skeletonText.split('; ').map(opt => opt.trim()).filter(opt => opt);
+      
+      // The backend should be sending complete skeleton options separated by ", "
+      // Each option should be a complete skeleton like "EEE, MMM d, y" or "MMM d, y"
+      // Don't split these further - treat each as a complete skeleton
+      const finalOptions = initialOptions;
+      const options = finalOptions;
+      
+      if (options.length > 1) {
+        return (
+          <div className="space-y-1">
+            {options.map((option, index) => (
+              <div
+                key={index}
+                className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm whitespace-nowrap overflow-x-auto"
+                title={`Skeleton option ${index + 1}: ${option}`}
+              >
+                {option}
+              </div>
+            ))}
+          </div>
+        );
+      } else if (options.length === 1) {
+        // Single skeleton option
+        return (
+          <div
+            className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm whitespace-nowrap overflow-x-auto"
+            title={`Skeleton: ${options[0]}`}
+          >
+            {options[0]}
+          </div>
+        );
+      }
+    }
+    
+    // Return regular cell content for non-skeleton columns
+    return <span>{skeletonText}</span>;
+  };
+
   if (rows.length === 0) {
     return <div className="text-gray-500">No data to preview</div>;
   }
@@ -67,7 +113,7 @@ const CSVPreview = ({ csvContent }: { csvContent: string }) => {
             <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
               {row.map((cell, cellIndex) => (
                 <td key={cellIndex} className="px-4 py-2 text-sm text-gray-900 border-b border-gray-200">
-                  {cell}
+                  {renderSkeletonOptions(cell, headers[cellIndex] || '')}
                 </td>
               ))}
             </tr>
@@ -321,7 +367,7 @@ export default function BatchIngestion() {
           </form>
 
           {results && !results.error && results.csv_content && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-md">
+            <div className="mt-6 p-6 bg-gray-50 rounded-md min-h-[300px] w-full max-w-6xl">
               <h3 className="font-medium text-gray-900 mb-4">Results:</h3>
               <CSVPreview csvContent={results.csv_content} />
             </div>

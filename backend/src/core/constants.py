@@ -84,7 +84,7 @@ MONTH_INDEXING = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
 DAY_INDEXING = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
 # Tokenization pattern
-TOKEN_PATTERN = r'[\p{L}\p{M}]+\.?|\p{N}+|[/,\.\-–—]'
+TOKEN_PATTERN = r'[\p{L}\p{M}]+\.?|\p{N}+|[/,\.\-–—،፣]'
 
-# Punctuation characters
-PUNCTUATION = [",", "/", "-", "—", "–—", "."] 
+# Punctuation characters - comprehensive list of all dash/hyphen variations
+PUNCTUATION = [",", "/", "-", "—", "–", "–—", ".", "،", "፣"] 

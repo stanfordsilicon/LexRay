@@ -54,7 +54,74 @@ def english_to_skeleton(english_text: str, cldr_path: str):
     expanded_options = expand_dash_variations(string_options)
 
     english_df = load_english_reference_data(cldr_path)
-    confirmed = [opt for opt in expanded_options if opt in english_df['English'].values.tolist() or len(set(opt.lower())) == 1]
+    english_values = english_df['English'].dropna().values.tolist()
+    
+    # Clean thin spaces from the values for comparison
+    english_values = [val.replace('\u2009', ' ') if isinstance(val, str) else val for val in english_values]
+    
+    # First try exact matches
+    confirmed = [opt for opt in expanded_options if opt in english_values or len(set(opt.lower())) == 1]
+    
+    # If no exact matches, try to find the best approximation
+    if not confirmed:
+        # For zero-padded numbers, prefer MM over M
+        # Check for MM/y first (zero-padded months)
+        if 'MM/y' in expanded_options:
+            confirmed = ['MM/y']
+        # Then check for other patterns
+        elif any(opt in ['dd/y'] for opt in expanded_options) and 'M/y' in english_values:
+            confirmed = ['M/y']
+        elif any(opt in ['MMM y', 'MMMM y'] for opt in expanded_options) and 'M/y' in english_values:
+            confirmed = ['M/y']
+        # Handle range expressions that might not have exact CLDR matches
+        else:
+            # Create a comprehensive range pattern mapping
+            def find_best_range_match(pattern, english_values):
+                """Find the best matching range pattern in CLDR data"""
+                # Normalize the pattern for comparison
+                normalized_pattern = pattern.replace('-', ' – ')
+                
+                # Direct match
+                if normalized_pattern in english_values:
+                    return normalized_pattern
+                
+                # Try to find a pattern with the same structure but different spacing
+                for value in english_values:
+                    if '–' in value:
+                        # Compare structure by removing spaces and dashes
+                        pattern_clean = ''.join(pattern.replace('-', '').replace('–', '').split())
+                        value_clean = ''.join(value.replace('-', '').replace('–', '').split())
+                        if pattern_clean == value_clean:
+                            return value
+                
+                # Try to find a pattern with similar structure
+                pattern_parts = pattern.replace('-', ' – ').split(' – ')
+                if len(pattern_parts) == 2:
+                    left, right = pattern_parts
+                    
+                    # Look for patterns with the same left side
+                    for value in english_values:
+                        if '–' in value:
+                            value_parts = value.split(' – ')
+                            if len(value_parts) == 2 and value_parts[0].strip() == left.strip():
+                                return value
+                    
+                    # Look for patterns with the same right side
+                    for value in english_values:
+                        if '–' in value:
+                            value_parts = value.split(' – ')
+                            if len(value_parts) == 2 and value_parts[1].strip() == right.strip():
+                                return value
+                
+                return None
+            
+            # Try to find matches for each expanded option
+            for opt in expanded_options:
+                match = find_best_range_match(opt, english_values)
+                if match:
+                    confirmed = [match]
+                    break
+    
     if not confirmed:
         raise ValueError(f"No official CLDR skeleton for '{english_text}'.")
 
@@ -154,10 +221,11 @@ def handle_batch_cldr(args):
                         "ENGLISH": english,
                         "TARGET": target,
                         "ENGLISH_SKELETON": eng_skel,
-                        "TARGET_SKELETON": ", ".join(targets) if targets else "ERROR"
+                        "TARGET_SKELETON": "; ".join(targets) if targets else "ERROR"
                     })
                 except Exception as e:
                     # Put ERROR for this specific row
+                    print(f"Error processing row {row_num}: {english} -> {target}: {str(e)}")
                     writer.writerow({
                         "ENGLISH": english,
                         "TARGET": target,
@@ -201,10 +269,11 @@ def handle_batch_noncldr(args):
                         "ENGLISH": english,
                         "TARGET": target,
                         "ENGLISH_SKELETON": eng_skel,
-                        "TARGET_SKELETON": ", ".join(targets) if targets else "ERROR"
+                        "TARGET_SKELETON": "; ".join(targets) if targets else "ERROR"
                     })
                 except Exception as e:
                     # Put ERROR for this specific row
+                    print(f"Error processing row {row_num}: {english} -> {target}: {str(e)}")
                     writer.writerow({
                         "ENGLISH": english,
                         "TARGET": target,

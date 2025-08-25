@@ -35,7 +35,7 @@ def load_english_reference_data(base_path):
     # Clean thin space characters from the data
     english_possibilities = df['English'].values.tolist()
     english_possibilities = [
-        str(item).replace('\u2009', '') if isinstance(item, str) else item
+        str(item).replace('\u2009', ' ') if isinstance(item, str) else item
         for item in english_possibilities
     ]
     df['English'] = english_possibilities
@@ -132,7 +132,7 @@ def populate_target_language_dict(tlang_df):
                 # Find matching translations in the dataset
                 date_structure = f"{elem_type} - {length} - {elem_context}"
                 matching_rows = tlang_df[tlang_df['Header'] == date_structure]
-                winning_values = matching_rows["Winning"].tolist()
+                winning_values = matching_rows["Winning"].dropna().tolist()  # Remove NaN values
                 
                 # Limit to expected number of items (12 months, 7 days)
                 max_items = 12 if elem_type == "Months" else 7
@@ -140,6 +140,9 @@ def populate_target_language_dict(tlang_df):
                 
                 # Add to lexicon and dictionary
                 lexicon.extend(winning_values)
+                
+                # Also add lowercase versions for case-insensitive matching
+                lexicon.extend([val.lower() for val in winning_values if isinstance(val, str)])
                 
                 # Generate dictionary key (e.g., "mon_nar_for", "day_wid_sta")
                 date_dict_key = f"{elem_type.lower()[:3]}_{length[:3]}_{elem_context.lower()[:3]}"

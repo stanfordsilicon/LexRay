@@ -245,11 +245,53 @@ export default function SingleIngestion() {
           </form>
 
           {results && !results.error && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-md text-sm text-gray-800">
+            <div className="mt-6 p-6 bg-gray-50 rounded-md text-sm text-gray-800 min-h-[200px] w-full max-w-6xl">
               {results.mode === "english" ? (
                 <div>English skeleton: {results.english_skeleton}</div>
               ) : (
-                <div>Target skeletons: {Array.isArray(results.target_skeletons) ? results.target_skeletons.join(", ") : String(results.target_skeletons)}</div>
+                <div>
+                  <div className="mb-2 font-medium text-gray-900">Target skeletons:</div>
+                  <div className="text-sm text-gray-800">
+                    {Array.isArray(results.target_skeletons) ? (
+                      <div className="space-y-1">
+                        {results.target_skeletons.map((skeleton: string, index: number) => (
+                          <div
+                            key={index}
+                            className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm whitespace-nowrap overflow-x-auto"
+                            title={`Skeleton option ${index + 1}`}
+                          >
+                            {skeleton}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      // Handle string format (comma-separated options)
+                      (() => {
+                        const skeletonText = String(results.target_skeletons);
+                        const options = skeletonText.split('; ').map(opt => opt.trim()).filter(opt => opt);
+                        
+                        // The backend should be sending complete skeleton options separated by ", "
+                        // Each option should be a complete skeleton like "EEE, MMM d, y" or "MMM d, y"
+                        // Don't split these further - treat each as a complete skeleton
+                        const finalOptions = options;
+                        
+                        return (
+                          <div className="space-y-1">
+                            {finalOptions.map((skeleton: string, index: number) => (
+                              <div
+                                key={index}
+                                className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm whitespace-nowrap overflow-x-auto"
+                                title={`Skeleton option ${index + 1}`}
+                              >
+                                {skeleton}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           )}

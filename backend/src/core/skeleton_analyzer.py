@@ -102,7 +102,7 @@ def generate_valid_combinations(formatting_options):
         current_group = []
         
         for format_list in formatting_options:
-            if format_list == ["-"] or format_list == ["."]:
+            if format_list == ["-"] or format_list == ["."] or format_list == ["–"] or format_list == ["—"]:
                 if current_group:
                     new_formatting_options.append(current_group)
                 new_formatting_options.append(format_list[0])  # Add the separator
@@ -114,7 +114,7 @@ def generate_valid_combinations(formatting_options):
             new_formatting_options.append(current_group)
         
         # Extract sections (ignore separators for combination generation)
-        sections = [item for item in new_formatting_options if item not in ["-", "."]]
+        sections = [item for item in new_formatting_options if item not in ["-", ".", "–", "—"]]
         
         # Generate valid combinations for each section
         section_combinations = []
@@ -143,7 +143,7 @@ def generate_valid_combinations(formatting_options):
                 for i, section_combo in enumerate(section_combo_tuple):
                     if i > 0:
                         # Find the next separator in new_formatting_options
-                        while separator_index < len(new_formatting_options) and new_formatting_options[separator_index] not in ["-", "."]:
+                        while separator_index < len(new_formatting_options) and new_formatting_options[separator_index] not in ["-", ".", "–", "—"]:
                             separator_index += 1
                         if separator_index < len(new_formatting_options):
                             combined.append(new_formatting_options[separator_index])
