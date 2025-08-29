@@ -146,12 +146,12 @@ def process_english_expression(eng_equivalent, base_path):
     print(f"Format options: {formatting_options}")
     
     # Generate valid combinations
-    options = generate_valid_combinations(formatting_options)
+    options = generate_valid_combinations(formatting_options, english_tokens)
     
     # Convert to skeleton codes
     skeleton_options = convert_to_skeleton_codes(options)
     
-    # Format as strings
+    # Format as strings (without CLDR validation)
     string_options = format_skeleton_strings(skeleton_options)
     
     # Expand dash variations
@@ -245,9 +245,9 @@ def process_target_language(lang_code, base_path, tlang_expression, eng_equivale
     
     if date_only_tokens:
         target_formatting_options = analyze_tokens_for_format_options(date_only_tokens, date_dict)
-        target_options = generate_valid_combinations(target_formatting_options)
+        target_options = generate_valid_combinations(target_formatting_options, tlang_tokenized)
         target_skeleton_options = convert_to_skeleton_codes(target_options)
-        target_string_options = format_skeleton_strings(target_skeleton_options)
+        target_string_options = format_skeleton_strings(target_skeleton_options, english_df)
         
         # For validation, check if the cross-language mapped skeletons are reasonable
         # by comparing the non-literal parts

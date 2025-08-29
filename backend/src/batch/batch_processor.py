@@ -101,7 +101,7 @@ class BatchProcessor:
             print(f"Error loading {language} data: {e}")
             return False
     
-    def process_single_row(self, english_text: str, target_text: str) -> Tuple[Optional[str], Optional[str]]:
+    def process_single_row(self, english_text: str, target_text: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Process a single date pair.
         
@@ -110,21 +110,38 @@ class BatchProcessor:
             target_text (str): Target language date expression
             
         Returns:
-            tuple: (english_skeleton, target_skeleton) or (None, None) if failed
+            tuple: (english_skeleton, target_skeleton, xpath) or (None, None, None) if failed
         """
         try:
+            # Import required modules for XPATH generation
+            from ..core.ambiguity_resolver import detect_ambiguities, get_metadata_for_skeleton
+            from ..data.data_loader import load_english_reference_data
+            
             # Process English expression
             english_tokens = tokenize_date_expression(english_text)
             english_formatting_options = analyze_tokens_for_format_options(english_tokens, ENGLISH_DATE_DICT)
-            english_options = generate_valid_combinations(english_formatting_options)
+            english_options = generate_valid_combinations(english_formatting_options, english_tokens)
             english_skeleton_options = convert_to_skeleton_codes(english_options)
             english_skeleton_strings = format_skeleton_strings(english_skeleton_options)
             
             if not english_skeleton_strings:
-                return None, None
+                return None, None, None
             
             # Use first English skeleton (most common)
             english_skeleton = english_skeleton_strings[0]
+            
+            # Generate XPATH metadata
+            english_df = load_english_reference_data(self.cldr_data_path)
+            english_skeleton_tokens = tokenize_date_expression(english_skeleton)
+            ambiguities = detect_ambiguities(english_tokens, english_skeleton_tokens)
+            metainfo = get_metadata_for_skeleton(english_skeleton, ambiguities, english_df)
+            
+            # Extract XPATH from metadata
+            xpath = ""
+            if metainfo and len(metainfo) > 0 and len(metainfo[0]) > 2:
+                xpaths = metainfo[0][2]  # Get xpaths from metadata
+                if xpaths and len(xpaths) > 0:
+                    xpath = xpaths[0]  # Use first XPATH if multiple exist
             
             # Process target expression
             target_tokens = semantic_tokenize(target_text, self.target_date_dict, self.target_lexicon)
@@ -136,16 +153,16 @@ class BatchProcessor:
             )
             
             if not target_skeleton_strings:
-                return english_skeleton, None
+                return english_skeleton, None, xpath
             
             # Return all target skeleton options as comma-separated string
             target_skeleton = ", ".join(target_skeleton_strings)
             
-            return english_skeleton, target_skeleton
+            return english_skeleton, target_skeleton, xpath
             
         except Exception as e:
             print(f"Error processing row '{english_text}' -> '{target_text}': {e}")
-            return None, None
+            return None, None, None
     
     def process_csv_file(self, input_file: str) -> str:
         """
@@ -209,14 +226,13 @@ class BatchProcessor:
             for row_num, row in enumerate(reader, 1):
                 english_text = row.get('ENGLISH', '').strip()
                 target_text = row.get('TARGET', '').strip()
-                xpath = row.get('XPATH', '').strip()
                 
                 if not english_text or not target_text:
                     print(f"Warning: Row {row_num} has empty ENGLISH or TARGET field, skipping")
                     failed_rows += 1
                     continue
                 
-                english_skeleton, target_skeleton = self.process_single_row(english_text, target_text)
+                english_skeleton, target_skeleton, generated_xpath = self.process_single_row(english_text, target_text)
                 
                 if english_skeleton is None:
                     print(f"Warning: Row {row_num} failed to process, skipping")
@@ -226,7 +242,7 @@ class BatchProcessor:
                 writer.writerow({
                     'ENGLISH_SKELETON': english_skeleton,
                     'TARGET_SKELETON': target_skeleton or '',
-                    'XPATH': xpath
+                    'XPATH': generated_xpath or ''
                 })
                 
                 processed_rows += 1

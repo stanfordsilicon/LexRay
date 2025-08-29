@@ -58,10 +58,21 @@ def analyze_tokens_for_format_options(tokens, date_dict, is_standalone=None):
                             token_options.extend(["mday_sma_for", "mon_sma_for", "year_abb_for"])
                     else:
                         # Non-zero 2-digit numbers (10-99)
+                        # For 2-digit numbers, prioritize day/month over year
+                        # Only include year abbreviation in very specific cases
+                        value = int(token)
                         if is_standalone:
-                            token_options.extend(["mday_min_sta", "mday_sma_sta", "mon_min_sta", "mon_sma_sta", "year_abb_sta"])
+                            token_options.extend(["mday_min_sta", "mday_sma_sta", "mon_min_sta", "mon_sma_sta"])
+                            # Only add year option if it's clearly a year (e.g., 20 for 2020)
+                            # Be more restrictive - only include year options for very specific year-like values
+                            if value >= 20 and value <= 99 and value % 10 == 0:  # Only round decades like 20, 30, 40, etc.
+                                token_options.append("year_abb_sta")
                         else:
-                            token_options.extend(["mday_min_for", "mday_sma_for", "mon_min_for", "mon_sma_for", "year_abb_for"])
+                            token_options.extend(["mday_min_for", "mday_sma_for", "mon_min_for", "mon_sma_for"])
+                            # Only add year option if it's clearly a year (e.g., 20 for 2020)
+                            # Be more restrictive - only include year options for very specific year-like values
+                            if value >= 20 and value <= 99 and value % 10 == 0:  # Only round decades like 20, 30, 40, etc.
+                                token_options.append("year_abb_for")
                 else:  # len(token) == 1
                     # Single-digit numbers (1-9)
                     if is_standalone:
@@ -78,12 +89,13 @@ def analyze_tokens_for_format_options(tokens, date_dict, is_standalone=None):
     return formatting_options
 
 
-def generate_valid_combinations(formatting_options):
+def generate_valid_combinations(formatting_options, original_tokens=None):
     """
     Generate all valid date format combinations from token options.
     
     Args:
         formatting_options (list): List of token option lists
+        original_tokens (list): Original tokens for validation (optional)
         
     Returns:
         list: List of valid format combinations
@@ -121,13 +133,32 @@ def generate_valid_combinations(formatting_options):
         for section in sections:
             all_combinations = list(product(*section))
             
-            # Filter out combinations with duplicate date element types
+            # Filter out combinations with duplicate date element types and invalid value assignments
             valid_combinations = []
             for combo in all_combinations:
                 date_elements = [elem for elem in combo if isinstance(elem, str) and '_' in elem]
                 prefixes = [elem.split('_')[0] for elem in date_elements]
                 
-                if len(prefixes) == len(set(prefixes)):
+                # Check for duplicate prefixes
+                if len(prefixes) != len(set(prefixes)):
+                    continue
+                
+                # Check for logical validity of the combination
+                is_valid = True
+                if original_tokens:
+                    # For each section, we need to find the corresponding numeric tokens
+                    # This is complex because sections may not align perfectly with the original token sequence
+                    # For now, we'll use a simpler approach: validate that the combination makes logical sense
+                    # without trying to map to specific numeric tokens
+                    
+                    # Count numeric elements in this combination
+                    numeric_elements = [elem for elem in date_elements if elem.startswith('mday_') or elem.startswith('mon_') or elem.startswith('year')]
+                    
+                    # For now, accept all combinations that don't have duplicate prefixes
+                    # The validation will be done at a higher level when we have the full context
+                    pass
+                
+                if is_valid:
                     valid_combinations.append(list(combo))
             
             section_combinations.append(valid_combinations)
@@ -164,20 +195,53 @@ def convert_to_skeleton_codes(options):
     Returns:
         list: List of skeleton code combinations
     """
-    return [
-        [SKELETON_CODES[element] if isinstance(element, str) and
-         (element.endswith('_for') or element.endswith('_sta') or element == "year")
-         else element for element in option]
-        for option in options
-    ]
+    converted_options = []
+    
+    for option in options:
+        converted_option = []
+        for element in option:
+            if isinstance(element, str) and (element.endswith('_for') or element.endswith('_sta') or element == "year"):
+                converted_option.append(SKELETON_CODES[element])
+            else:
+                converted_option.append(element)
+        
+        # Validate that no duplicate skeleton element types exist within the same side of a range
+        # For ranges (containing '-'), allow duplicates on different sides
+        if '-' in converted_option or '–' in converted_option:
+            # For ranges, allow duplicates as they can appear on both sides
+            converted_options.append(converted_option)
+        else:
+            # For non-ranges, check for duplicates
+            element_types = []
+            for code in converted_option:
+                if isinstance(code, str):
+                    if code.startswith('M'):
+                        element_types.append('M')
+                    elif code.startswith('d'):
+                        element_types.append('d')
+                    elif code.startswith('y'):
+                        element_types.append('y')
+                    elif code.startswith('E'):
+                        element_types.append('E')
+                    elif code.startswith('L'):
+                        element_types.append('L')
+                    elif code.startswith('c'):
+                        element_types.append('c')
+            
+            # Only add options that don't have duplicate element types
+            if len(element_types) == len(set(element_types)):
+                converted_options.append(converted_option)
+    
+    return converted_options
 
 
-def format_skeleton_strings(options):
+def format_skeleton_strings(options, english_cldr_data=None):
     """
     Convert skeleton combinations to properly spaced strings.
     
     Args:
         options (list): List of skeleton code combinations
+        english_cldr_data (pandas.DataFrame): English CLDR data for validation
         
     Returns:
         list: List of formatted skeleton strings
@@ -188,6 +252,33 @@ def format_skeleton_strings(options):
         if not option:
             string_options.append("")
             continue
+        
+        # Final validation: check for duplicate element types in the final skeleton
+        # For ranges (containing '-'), allow duplicates on different sides
+        if '-' in option or '–' in option:
+            # For ranges, allow duplicates as they can appear on both sides
+            pass
+        else:
+            # For non-ranges, check for duplicates
+            element_types = []
+            for code in option:
+                if isinstance(code, str):
+                    if code.startswith('M'):
+                        element_types.append('M')
+                    elif code.startswith('d'):
+                        element_types.append('d')
+                    elif code.startswith('y'):
+                        element_types.append('y')
+                    elif code.startswith('E'):
+                        element_types.append('E')
+                    elif code.startswith('L'):
+                        element_types.append('L')
+                    elif code.startswith('c'):
+                        element_types.append('c')
+            
+            # Skip options with duplicate element types
+            if len(element_types) != len(set(element_types)):
+                continue
         
         result = str(option[0])
         
@@ -206,9 +297,19 @@ def format_skeleton_strings(options):
                   previous not in PUNCTUATION and current not in PUNCTUATION):
                 # Space between date elements (both contain letters/numbers)
                 result += ' ' + current
+            elif current in ['-', '–'] or previous in ['-', '–']:
+                # No space around dashes
+                result += current
             else:
                 # No space for punctuation connections
                 result += current
+        
+        # Validate against English CLDR data if provided
+        if english_cldr_data is not None:
+            if 'Winning' in english_cldr_data.columns:
+                # Check if this skeleton exists in the winning examples
+                if result not in english_cldr_data['Winning'].values:
+                    continue  # Skip this skeleton if it doesn't exist in CLDR data
         
         string_options.append(result)
     

@@ -48,7 +48,7 @@ def english_to_skeleton(english_text: str, cldr_path: str):
     validate_english_tokens(english_tokens, english_text)
 
     formatting_options = analyze_tokens_for_format_options(english_tokens, ENGLISH_DATE_DICT)
-    options = generate_valid_combinations(formatting_options)
+    options = generate_valid_combinations(formatting_options, english_tokens)
     skeleton_options = convert_to_skeleton_codes(options)
     string_options = format_skeleton_strings(skeleton_options)
     expanded_options = expand_dash_variations(string_options)
@@ -123,9 +123,13 @@ def english_to_skeleton(english_text: str, cldr_path: str):
                     break
     
     if not confirmed:
-        raise ValueError(f"No official CLDR skeleton for '{english_text}'.")
-
-    chosen = confirmed[0]
+        # If no official CLDR skeleton found, use the first generated option
+        if expanded_options:
+            chosen = expanded_options[0]
+        else:
+            raise ValueError(f"No CLDR skeleton could be generated for '{english_text}'.")
+    else:
+        chosen = confirmed[0]
     english_skeleton_tokens = tokenize_date_expression(chosen)
     ambiguities = detect_ambiguities(english_tokens, english_skeleton_tokens)
     metainfo = get_metadata_for_skeleton(chosen, ambiguities, english_df)
@@ -181,12 +185,13 @@ def handle_batch_english(args):
                 if not text:
                     continue
                 
+                eng_skel = "ERROR"
                 try:
                     eng_skel, _, _ = english_to_skeleton(text, args.cldr_path)
-                    writer.writerow({"ENGLISH": text, "ENGLISH_SKELETON": eng_skel})
                 except Exception as e:
-                    # Put ERROR for this specific row
-                    writer.writerow({"ENGLISH": text, "ENGLISH_SKELETON": "ERROR"})
+                    print(f"Error generating English skeleton for row {row_num}: {text}: {str(e)}")
+                
+                writer.writerow({"ENGLISH": text, "ENGLISH_SKELETON": eng_skel})
                     
     except Exception as e:
         if "CSV must contain" in str(e):
@@ -199,7 +204,7 @@ def handle_batch_english(args):
 
 def handle_batch_cldr(args):
     out = io.StringIO()
-    writer = csv.DictWriter(out, fieldnames=["ENGLISH", "TARGET", "ENGLISH_SKELETON", "TARGET_SKELETON"]) 
+    writer = csv.DictWriter(out, fieldnames=["ENGLISH", "TARGET", "ENGLISH_SKELETON", "TARGET_SKELETON", "XPATH"]) 
     writer.writeheader()
     
     try:
@@ -214,24 +219,39 @@ def handle_batch_cldr(args):
                 if not english or not target:
                     continue
                 
+                # Try to generate English skeleton first
+                eng_skel = "ERROR"
+                xpath = ""
                 try:
-                    eng_skel, ambiguities, _ = english_to_skeleton(english, args.cldr_path)
-                    targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path)
-                    writer.writerow({
-                        "ENGLISH": english,
-                        "TARGET": target,
-                        "ENGLISH_SKELETON": eng_skel,
-                        "TARGET_SKELETON": "; ".join(targets) if targets else "ERROR"
-                    })
+                    eng_skel, ambiguities, metainfo = english_to_skeleton(english, args.cldr_path)
+                    
+                    # Extract XPATH from metadata
+                    if metainfo and len(metainfo) > 0 and len(metainfo[0]) > 2:
+                        xpaths = metainfo[0][2]  # Get xpaths from metadata
+                        if xpaths and len(xpaths) > 0:
+                            xpath = xpaths[0]  # Use first XPATH if multiple exist
                 except Exception as e:
-                    # Put ERROR for this specific row
-                    print(f"Error processing row {row_num}: {english} -> {target}: {str(e)}")
-                    writer.writerow({
-                        "ENGLISH": english,
-                        "TARGET": target,
-                        "ENGLISH_SKELETON": "ERROR",
-                        "TARGET_SKELETON": "ERROR"
-                    })
+                    print(f"Error generating English skeleton for row {row_num}: {english}: {str(e)}")
+                
+                # Try to generate target skeleton
+                target_skel = "ERROR"
+                try:
+                    if eng_skel != "ERROR":
+                        targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path)
+                        target_skel = "; ".join(targets) if targets else "ERROR"
+                    else:
+                        target_skel = "ERROR"
+                except Exception as e:
+                    print(f"Error generating target skeleton for row {row_num}: {english} -> {target}: {str(e)}")
+                    target_skel = "ERROR"
+                
+                writer.writerow({
+                    "ENGLISH": english,
+                    "TARGET": target,
+                    "ENGLISH_SKELETON": eng_skel,
+                    "TARGET_SKELETON": target_skel,
+                    "XPATH": xpath
+                })
                     
     except Exception as e:
         if "CSV must contain" in str(e):
@@ -244,7 +264,7 @@ def handle_batch_cldr(args):
 
 def handle_batch_noncldr(args):
     out = io.StringIO()
-    writer = csv.DictWriter(out, fieldnames=["ENGLISH", "TARGET", "ENGLISH_SKELETON", "TARGET_SKELETON"]) 
+    writer = csv.DictWriter(out, fieldnames=["ENGLISH", "TARGET", "ENGLISH_SKELETON", "TARGET_SKELETON", "XPATH"]) 
     writer.writeheader()
     
     try:
@@ -262,24 +282,39 @@ def handle_batch_noncldr(args):
                 if not english or not target:
                     continue
                 
+                # Try to generate English skeleton first
+                eng_skel = "ERROR"
+                xpath = ""
                 try:
-                    eng_skel, ambiguities, _ = english_to_skeleton(english, args.cldr_path)
-                    targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path, target_df=df)
-                    writer.writerow({
-                        "ENGLISH": english,
-                        "TARGET": target,
-                        "ENGLISH_SKELETON": eng_skel,
-                        "TARGET_SKELETON": "; ".join(targets) if targets else "ERROR"
-                    })
+                    eng_skel, ambiguities, metainfo = english_to_skeleton(english, args.cldr_path)
+                    
+                    # Extract XPATH from metadata
+                    if metainfo and len(metainfo) > 0 and len(metainfo[0]) > 2:
+                        xpaths = metainfo[0][2]  # Get xpaths from metadata
+                        if xpaths and len(xpaths) > 0:
+                            xpath = xpaths[0]  # Use first XPATH if multiple exist
                 except Exception as e:
-                    # Put ERROR for this specific row
-                    print(f"Error processing row {row_num}: {english} -> {target}: {str(e)}")
-                    writer.writerow({
-                        "ENGLISH": english,
-                        "TARGET": target,
-                        "ENGLISH_SKELETON": "ERROR",
-                        "TARGET_SKELETON": "ERROR"
-                    })
+                    print(f"Error generating English skeleton for row {row_num}: {english}: {str(e)}")
+                
+                # Try to generate target skeleton
+                target_skel = "ERROR"
+                try:
+                    if eng_skel != "ERROR":
+                        targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path, target_df=df)
+                        target_skel = "; ".join(targets) if targets else "ERROR"
+                    else:
+                        target_skel = "ERROR"
+                except Exception as e:
+                    print(f"Error generating target skeleton for row {row_num}: {english} -> {target}: {str(e)}")
+                    target_skel = "ERROR"
+                
+                writer.writerow({
+                    "ENGLISH": english,
+                    "TARGET": target,
+                    "ENGLISH_SKELETON": eng_skel,
+                    "TARGET_SKELETON": target_skel,
+                    "XPATH": xpath
+                })
                     
     except Exception as e:
         if "CSV must contain" in str(e) or "Pairs CSV must contain" in str(e):
