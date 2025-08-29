@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import LanguageAutocomplete from "../components/LanguageAutocomplete";
 
 // CSV Preview Component
 const CSVPreview = ({ csvContent }: { csvContent: string }) => {
@@ -274,24 +275,14 @@ export default function BatchIngestion() {
 
             {activeTab === "cldr" && (
               <>
-                <div>
-                  <label htmlFor="cldrLang" className="block text-sm font-medium text-gray-700 mb-2">
-                    Choose a CLDR language
-                  </label>
-                  <select
-                    id="cldrLang"
-                    value={selectedLanguage}
-                    onChange={(e) => setSelectedLanguage(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value="">Choose language</option>
-                    {availableLanguages.map((lang) => (
-                      <option key={lang} value={lang}>
-                        {lang}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <LanguageAutocomplete
+                  languages={availableLanguages}
+                  value={selectedLanguage}
+                  onChange={setSelectedLanguage}
+                  label="Choose a CLDR language"
+                  id="cldrLang"
+                  placeholder="Type to search CLDR languages..."
+                />
                 <div>
                   <label htmlFor="pairsFile" className="block text-sm font-medium text-gray-700 mb-2">
                     Upload CSV with English expressions and exact translations

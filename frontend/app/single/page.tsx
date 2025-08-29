@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import LanguageAutocomplete from "../components/LanguageAutocomplete";
 
 type LanguageResponse = { languages: string[] };
 
@@ -77,10 +78,16 @@ export default function SingleIngestion() {
 
       const res = await fetch("/api/process", { method: "POST", body: form });
       const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || "Processing failed");
+      
+      // Set results even if there's an error, as long as we have skeleton data
+      if (data.english_skeleton || data.target_skeletons) {
+        setResults(data);
       }
-      setResults(data);
+      
+      // Show error if there is one, but don't prevent showing results
+      if (!res.ok || data.error) {
+        setError(data.error || "Processing failed");
+      }
     } catch (err: any) {
       setError(err?.message || "Something went wrong");
     } finally {
@@ -155,24 +162,14 @@ export default function SingleIngestion() {
 
             {activeTab === "existing" && (
               <>
-                <div>
-                  <label htmlFor="existingLang" className="block text-sm font-medium text-gray-700 mb-2">
-                    Language name
-                  </label>
-                  <select
-                    id="existingLang"
-                    value={selectedExistingLanguage}
-                    onChange={(e) => setSelectedExistingLanguage(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    <option value="">Choose language</option>
-                    {availableLanguages.map((lang) => (
-                      <option key={lang} value={lang}>
-                        {lang}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <LanguageAutocomplete
+                  languages={availableLanguages}
+                  value={selectedExistingLanguage}
+                  onChange={setSelectedExistingLanguage}
+                  label="Language name"
+                  id="existingLang"
+                  placeholder="Type to search CLDR languages..."
+                />
                 <div>
                   <label htmlFor="existingTranslation" className="block text-sm font-medium text-gray-700 mb-2">
                     Translation in selected language
@@ -244,11 +241,17 @@ export default function SingleIngestion() {
             </button>
           </form>
 
-          {results && !results.error && (
-            <div className="mt-6 p-6 bg-gray-50 rounded-md text-sm text-gray-800 min-h-[200px] w-full max-w-6xl">
-              {results.mode === "english" ? (
-                <div>English skeleton: {results.english_skeleton}</div>
-              ) : (
+          {/* Show skeleton results if available, regardless of errors */}
+          {results && (results.english_skeleton || results.target_skeletons) && (
+            <div className="mt-6 p-6 bg-gray-50 rounded-md text-sm text-gray-800 w-full max-w-6xl">
+              {results.mode === "english" && results.english_skeleton ? (
+                <div>
+                  <div className="mb-2 font-medium text-gray-900">English skeleton:</div>
+                  <div className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-md text-sm break-all min-w-0">
+                    {results.english_skeleton}
+                  </div>
+                </div>
+              ) : results.target_skeletons ? (
                 <div>
                   <div className="mb-2 font-medium text-gray-900">Target skeletons:</div>
                   <div className="text-sm text-gray-800">
@@ -257,7 +260,7 @@ export default function SingleIngestion() {
                         {results.target_skeletons.map((skeleton: string, index: number) => (
                           <div
                             key={index}
-                            className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm whitespace-nowrap overflow-x-auto"
+                            className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-md text-sm break-all min-w-0"
                             title={`Skeleton option ${index + 1}`}
                           >
                             {skeleton}
@@ -280,7 +283,7 @@ export default function SingleIngestion() {
                             {finalOptions.map((skeleton: string, index: number) => (
                               <div
                                 key={index}
-                                className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm whitespace-nowrap overflow-x-auto"
+                                className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-md text-sm break-all min-w-0"
                                 title={`Skeleton option ${index + 1}`}
                               >
                                 {skeleton}
@@ -292,7 +295,7 @@ export default function SingleIngestion() {
                     )}
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>
