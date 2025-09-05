@@ -102,8 +102,11 @@ async def process_request(
             }
         
         elif mode == "single-new":
-            if not all([english, language, translation, elements_csv]):
-                raise HTTPException(status_code=400, detail="English, language, translation, and elements CSV required")
+            if not all([english, language, translation]):
+                raise HTTPException(status_code=400, detail="English, language, and translation required")
+            
+            if not elements_csv or elements_csv.filename is None:
+                raise HTTPException(status_code=400, detail="Elements CSV file required")
             
             # For now, return a placeholder response
             # TODO: Implement proper single-new processing with elements CSV
