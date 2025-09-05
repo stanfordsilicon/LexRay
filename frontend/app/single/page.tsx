@@ -247,7 +247,14 @@ export default function SingleIngestion() {
           {results && !results.error && (
             <div className="mt-6 p-6 bg-gray-50 rounded-md text-sm text-gray-800 min-h-[200px] w-full max-w-6xl">
               {results.mode === "english" ? (
-                <div>English skeleton: {results.english_skeleton}</div>
+                <div>
+                  <div className="mb-2 font-medium text-gray-900">English skeleton:</div>
+                  <div className="text-sm text-gray-800">
+                    <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm">
+                      {results.english_skeleton}
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div>
                   <div className="mb-2 font-medium text-gray-900">Target skeletons:</div>
