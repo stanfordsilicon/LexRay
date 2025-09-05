@@ -20,9 +20,9 @@ sys.path.insert(0, str(SRC_PATH))
 from api_bridge import (
     english_to_skeleton, 
     map_to_target, 
-    process_batch_english, 
-    process_batch_cldr, 
-    process_batch_noncldr
+    handle_batch_english, 
+    handle_batch_cldr, 
+    handle_batch_noncldr
 )
 
 app = FastAPI(title="LexRay API", version="1.0.0")
@@ -112,7 +112,14 @@ async def process_request(
                 tmp_path = tmp_file.name
             
             try:
-                result = process_batch_english(tmp_path, cldr_path)
+                # Create args object like the CLI expects
+                class Args:
+                    def __init__(self):
+                        self.csv = tmp_path
+                        self.cldr_path = cldr_path
+                
+                args = Args()
+                result = handle_batch_english(args)
                 return {"success": True, "csv_content": result}
             finally:
                 os.unlink(tmp_path)
@@ -128,7 +135,15 @@ async def process_request(
                 tmp_path = tmp_file.name
             
             try:
-                result = process_batch_cldr(tmp_path, language, cldr_path)
+                # Create args object like the CLI expects
+                class Args:
+                    def __init__(self):
+                        self.csv = tmp_path
+                        self.language = language
+                        self.cldr_path = cldr_path
+                
+                args = Args()
+                result = handle_batch_cldr(args)
                 return {"success": True, "csv_content": result}
             finally:
                 os.unlink(tmp_path)
@@ -149,7 +164,15 @@ async def process_request(
                 elements_path = elements_tmp.name
             
             try:
-                result = process_batch_noncldr(pairs_path, elements_path, language)
+                # Create args object like the CLI expects
+                class Args:
+                    def __init__(self):
+                        self.pairs_csv = pairs_path
+                        self.elements_csv = elements_path
+                        self.language = language
+                
+                args = Args()
+                result = handle_batch_noncldr(args)
                 return {"success": True, "csv_content": result}
             finally:
                 os.unlink(pairs_path)
