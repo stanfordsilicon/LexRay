@@ -101,6 +101,19 @@ async def process_request(
                 "xpath": metainfo[0][2][0] if metainfo and len(metainfo) > 0 and len(metainfo[0]) > 2 else ""
             }
         
+        elif mode == "single-new":
+            if not all([english, language, translation, elements_csv]):
+                raise HTTPException(status_code=400, detail="English, language, translation, and elements CSV required")
+            
+            # For now, return a placeholder response
+            # TODO: Implement proper single-new processing with elements CSV
+            return {
+                "success": True,
+                "english_skeleton": "MMMM d, y",  # Placeholder
+                "target_skeletons": ["MMMM d, y"],  # Placeholder
+                "message": "Single-new mode not fully implemented yet"
+            }
+        
         elif mode == "batch-english":
             if not csv:
                 raise HTTPException(status_code=400, detail="CSV file required")
