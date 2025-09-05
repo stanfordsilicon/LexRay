@@ -76,3 +76,4 @@ Batch testing data lives in `backend/testing/`.
 - When deploying to Vercel, only the `frontend/` directory is required.
 
 
+# Trigger Vercel deployment Fri Sep  5 08:14:26 CDT 2025
