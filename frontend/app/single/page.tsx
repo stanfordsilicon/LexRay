@@ -80,7 +80,8 @@ export default function SingleIngestion() {
       if (!res.ok || data.error) {
         throw new Error(data.error || "Processing failed");
       }
-      setResults(data);
+      // Add the mode to the results so we know which display logic to use
+      setResults({ ...data, mode: activeTab });
     } catch (err: any) {
       setError(err?.message || "Something went wrong");
     } finally {
