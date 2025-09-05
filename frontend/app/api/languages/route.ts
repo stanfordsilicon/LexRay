@@ -1,24 +1,37 @@
 import { NextResponse } from "next/server";
-import { readdir } from "fs/promises";
-import path from "path";
 
-// GET /api/languages → returns list of languages that have *_moderate.xlsx in backend/cldr_data
+// Get the backend URL from environment variables
+const getBackendUrl = () => {
+  // In production, use the deployed backend URL
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.BACKEND_URL || 'https://lexray-backend.railway.app';
+  }
+  // In development, use local backend
+  return process.env.BACKEND_URL || 'http://localhost:8000';
+};
+
+// GET /api/languages → returns list of languages from backend API
 export async function GET() {
   try {
-    const frontendRoot = process.cwd();
-    const cldrDir = path.resolve(frontendRoot, "../backend/cldr_data");
-    const entries = await readdir(cldrDir, { withFileTypes: true });
-
-    const languages: string[] = entries
-      .filter((d) => d.isFile() && /_moderate\.xlsx$/i.test(d.name))
-      .map((d) => d.name.replace(/_moderate\.xlsx$/i, ""))
-      .filter((name) => name.toLowerCase() !== "english")
-      .sort((a, b) => a.localeCompare(b));
-
-    return NextResponse.json({ languages });
+    const backendUrl = getBackendUrl();
+    
+    const response = await fetch(`${backendUrl}/api/languages`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Backend API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return NextResponse.json(data);
   } catch (error) {
+    console.error('Backend API call failed:', error);
     return NextResponse.json(
-      { languages: [], error: "Could not read CLDR languages" },
+      { languages: [], error: "Could not fetch languages from backend" },
       { status: 200 }
     );
   }

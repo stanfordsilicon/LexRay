@@ -1,124 +1,46 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdtemp, rm } from "fs/promises";
-import os from "os";
-import path from "path";
-import { spawn } from "child_process";
 
-async function runBridge(args: string[], stdinData?: string) {
-  const frontendRoot = process.cwd();
-  const backendRoot = path.resolve(frontendRoot, "../backend");
-  const pyPath = process.env.PYTHON_PATH || "python3";
-  const cmd = spawn(pyPath, [path.join(backendRoot, "api_bridge.py"), ...args], {
-    cwd: backendRoot,
-  });
-
-  let stdout = "";
-  let stderr = "";
-  cmd.stdout.on("data", (d) => (stdout += d.toString()));
-  cmd.stderr.on("data", (d) => (stderr += d.toString()));
-  if (stdinData) {
-    cmd.stdin.write(stdinData);
-    cmd.stdin.end();
+// Get the backend URL from environment variables
+const getBackendUrl = () => {
+  // In production, use the deployed backend URL
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.BACKEND_URL || 'https://lexray-backend.railway.app';
   }
-  await new Promise<void>((resolve) => cmd.on("close", () => resolve()));
+  // In development, use local backend
+  return process.env.BACKEND_URL || 'http://localhost:8000';
+};
+
+async function callBackendAPI(formData: FormData) {
+  const backendUrl = getBackendUrl();
+  
   try {
-    return JSON.parse(stdout.trim());
-  } catch (e) {
-    return { error: stderr || stdout || "Unknown error" };
+    const response = await fetch(`${backendUrl}/api/process`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Backend API error: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Backend API call failed:', error);
+    return { 
+      error: `Backend API unavailable: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    };
   }
 }
 
 export async function POST(req: Request) {
   try {
     const contentType = req.headers.get("content-type") || "";
-    const frontendRoot = process.cwd();
-    const backendRoot = path.resolve(frontendRoot, "../backend");
-    const cldrPath = path.join(backendRoot, "cldr_data");
 
     if (contentType.includes("multipart/form-data")) {
       const form = await req.formData();
-      const mode = String(form.get("mode"));
-
-      const tempDir = await mkdtemp(path.join(os.tmpdir(), "lexray-"));
-      const tempFiles: string[] = [];
-      const saveFile = async (file: File, name: string) => {
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const filePath = path.join(tempDir, name);
-        await writeFile(filePath, buffer);
-        tempFiles.push(filePath);
-        return filePath;
-      };
-
-      let result: any;
-      if (mode === "batch-english") {
-        const csv = form.get("csv") as File;
-        const csvPath = await saveFile(csv, "english.csv");
-        result = await runBridge(["batch-english", "--csv", csvPath, "--cldr_path", cldrPath]);
-      } else if (mode === "batch-cldr") {
-        const lang = String(form.get("language"));
-        const csv = form.get("csv") as File;
-        const csvPath = await saveFile(csv, "pairs.csv");
-        result = await runBridge(["batch-cldr", "--csv", csvPath, "--language", lang, "--cldr_path", cldrPath]);
-      } else if (mode === "batch-noncldr") {
-        const lang = String(form.get("language"));
-        const pairs = form.get("pairs_csv") as File;
-        const elements = form.get("elements_csv") as File;
-        const pairsPath = await saveFile(pairs, "pairs.csv");
-        const elementsPath = await saveFile(elements, "elements.csv");
-        result = await runBridge([
-          "batch-noncldr",
-          "--pairs_csv",
-          pairsPath,
-          "--elements_csv",
-          elementsPath,
-          "--language",
-          lang,
-          "--cldr_path",
-          cldrPath,
-        ]);
-      } else if (mode === "single-english") {
-        const english = String(form.get("english"));
-        result = await runBridge(["single-english", "--english", english, "--cldr_path", cldrPath]);
-      } else if (mode === "single-cldr") {
-        const english = String(form.get("english"));
-        const language = String(form.get("language"));
-        const translation = String(form.get("translation"));
-        result = await runBridge([
-          "single-cldr",
-          "--english",
-          english,
-          "--language",
-          language,
-          "--translation",
-          translation,
-          "--cldr_path",
-          cldrPath,
-        ]);
-      } else if (mode === "single-new") {
-        const english = String(form.get("english"));
-        const language = String(form.get("language"));
-        const translation = String(form.get("translation"));
-        const elements = form.get("elements_csv") as File;
-        const elementsPath = await saveFile(elements, "elements.csv");
-        result = await runBridge([
-          "single-new",
-          "--english",
-          english,
-          "--language",
-          language,
-          "--translation",
-          translation,
-          "--elements_csv",
-          elementsPath,
-          "--cldr_path",
-          cldrPath,
-        ]);
-      } else {
-        result = { error: "Unknown mode" };
-      }
-
-      // Cleanup temp files
-      await rm(tempDir, { recursive: true, force: true });
+      
+      // Forward the request to the backend API
+      const result = await callBackendAPI(form);
       return NextResponse.json(result);
     }
 
