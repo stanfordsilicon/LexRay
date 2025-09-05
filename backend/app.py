@@ -75,17 +75,31 @@ async def process_request(
     try:
         cldr_path = str(PROJECT_ROOT / "cldr_data")
         
+        # Debug: Log the received data
+        print(f"DEBUG: Received mode={mode}, english='{english}', language='{language}', translation='{translation}'")
+        
         if mode == "single-english":
             if not english:
                 raise HTTPException(status_code=400, detail="English text required")
             
-            result = english_to_skeleton(english, cldr_path)
-            return {
-                "success": True,
-                "english_skeleton": result[0] if result else "ERROR",
-                "ambiguities": result[1] if len(result) > 1 else [],
-                "metadata": result[2] if len(result) > 2 else []
-            }
+            try:
+                result = english_to_skeleton(english, cldr_path)
+                return {
+                    "success": True,
+                    "english_skeleton": result[0] if result else "ERROR",
+                    "ambiguities": result[1] if len(result) > 1 else [],
+                    "metadata": result[2] if len(result) > 2 else []
+                }
+            except Exception as e:
+                error_msg = str(e)
+                if "not in the English data set" in error_msg:
+                    return {
+                        "success": False,
+                        "error": f"Non-Latin characters detected: '{english}'. Please use English date formats like 'September 5, 2025' or '2025-09-05'.",
+                        "suggestion": "Try converting to English format first, or use the CLDR language tab for non-English dates."
+                    }
+                else:
+                    raise HTTPException(status_code=500, detail=f"Processing error: {error_msg}")
         
         elif mode == "single-cldr":
             if not all([english, language, translation]):
