@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 const getBackendUrl = () => {
   // In production, use the deployed backend URL
   if (process.env.NODE_ENV === 'production') {
-    return process.env.BACKEND_URL || 'https://lexray-backend.railway.app';
+    return process.env.BACKEND_URL || 'https://lexray-backend.onrender.com';
   }
   // In development, use local backend
   return process.env.BACKEND_URL || 'http://localhost:8000';
