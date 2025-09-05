@@ -105,15 +105,27 @@ async def process_request(
             if not all([english, language, translation]):
                 raise HTTPException(status_code=400, detail="English, language, and translation required")
             
-            eng_skel, ambiguities, metainfo = english_to_skeleton(english, cldr_path)
-            targets = map_to_target(language, translation, english, eng_skel, ambiguities, cldr_path)
-            
-            return {
-                "success": True,
-                "english_skeleton": eng_skel,
-                "target_skeletons": targets,
-                "xpath": metainfo[0][2][0] if metainfo and len(metainfo) > 0 and len(metainfo[0]) > 2 else ""
-            }
+            try:
+                eng_skel, ambiguities, metainfo = english_to_skeleton(english, cldr_path)
+                targets = map_to_target(language, translation, english, eng_skel, ambiguities, cldr_path)
+                
+                # Clean up any corrupted characters in the results
+                if targets and isinstance(targets, list):
+                    targets = [str(target).encode('utf-8', errors='ignore').decode('utf-8') for target in targets]
+                
+                return {
+                    "success": True,
+                    "english_skeleton": eng_skel,
+                    "target_skeletons": targets,
+                    "xpath": metainfo[0][2][0] if metainfo and len(metainfo) > 0 and len(metainfo[0]) > 2 else ""
+                }
+            except Exception as e:
+                error_msg = str(e)
+                return {
+                    "success": False,
+                    "error": f"CLDR processing failed: {error_msg}",
+                    "suggestion": "Try using a different language or check if the translation is correct."
+                }
         
         elif mode == "single-new":
             if not all([english, language, translation]):
