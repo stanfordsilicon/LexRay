@@ -209,16 +209,28 @@ export default function BatchIngestion() {
         throw new Error(data.error || "Processing failed");
       }
       
-      // Ensure csv_content is a string
+      // Ensure csv_content is a string - handle nested objects
       if (data.csv_content && typeof data.csv_content !== 'string') {
         console.error("csv_content is not a string:", data.csv_content);
-        data.csv_content = String(data.csv_content);
+        // If it's an object, try to extract the actual CSV string
+        if (typeof data.csv_content === 'object' && data.csv_content !== null) {
+          // Handle nested structure: { csv_content: "...", suggested_filename: "..." }
+          if ('csv_content' in data.csv_content && typeof data.csv_content.csv_content === 'string') {
+            data.csv_content = data.csv_content.csv_content;
+          } else {
+            // Fallback: try to stringify, but this shouldn't happen
+            console.error("Could not extract csv_content from nested object");
+            data.csv_content = "";
+          }
+        } else {
+          data.csv_content = String(data.csv_content);
+        }
       }
       
       setResults(data);
       // If CSV content is provided, trigger a download
       if (data.csv_content) {
-        const csvString = typeof data.csv_content === 'string' ? data.csv_content : JSON.stringify(data.csv_content);
+        const csvString = typeof data.csv_content === 'string' ? data.csv_content : (typeof data.csv_content === 'object' && data.csv_content !== null && 'csv_content' in data.csv_content ? data.csv_content.csv_content : JSON.stringify(data.csv_content));
         const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
