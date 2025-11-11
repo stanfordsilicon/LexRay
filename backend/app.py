@@ -168,7 +168,7 @@ async def process_request(
                 
                 args = Args()
                 result = handle_batch_english(args)
-                return {"success": True, "csv_content": result}
+                return {"success": True, **result}
             finally:
                 os.unlink(tmp_path)
         
@@ -192,7 +192,7 @@ async def process_request(
                 
                 args = Args()
                 result = handle_batch_cldr(args)
-                return {"success": True, "csv_content": result}
+                return {"success": True, **result}
             finally:
                 os.unlink(tmp_path)
         
@@ -221,7 +221,7 @@ async def process_request(
                 
                 args = Args()
                 result = handle_batch_noncldr(args)
-                return {"success": True, "csv_content": result}
+                return {"success": True, **result}
             finally:
                 os.unlink(pairs_path)
                 os.unlink(elements_path)
