@@ -256,29 +256,46 @@ async def process_request(
                 result = handle_batch_noncldr(args)
                 
                 # Debug logging
-                print(f"DEBUG batch-noncldr: result type = {type(result)}, result = {result}")
+                print(f"DEBUG batch-noncldr: result type = {type(result)}, result keys = {list(result.keys()) if isinstance(result, dict) else 'N/A'}")
                 
                 # Ensure we return the correct structure - handle both nested and flat responses
-                if isinstance(result, dict):
-                    csv_content = result.get("csv_content", "")
-                    # If csv_content is itself a dict (nested), extract the actual string
-                    if isinstance(csv_content, dict):
-                        csv_content = csv_content.get("csv_content", "")
-                    suggested_filename = result.get("suggested_filename", f"{language}_results.csv")
-                    # If suggested_filename is itself a dict (nested), extract the actual string
-                    if isinstance(suggested_filename, dict):
-                        suggested_filename = suggested_filename.get("suggested_filename", f"{language}_results.csv")
-                else:
-                    # Fallback if result is not a dict
-                    csv_content = ""
-                    suggested_filename = f"{language}_results.csv"
+                csv_content = ""
+                suggested_filename = f"{language}_results.csv"
                 
-                print(f"DEBUG batch-noncldr: returning csv_content type = {type(csv_content)}, length = {len(csv_content) if isinstance(csv_content, str) else 'N/A'}")
+                if isinstance(result, dict):
+                    # Get csv_content - handle nested structure
+                    raw_csv = result.get("csv_content", "")
+                    if isinstance(raw_csv, dict):
+                        # Double-nested case
+                        csv_content = raw_csv.get("csv_content", "")
+                        if not csv_content and "csv_content" in raw_csv:
+                            csv_content = str(raw_csv.get("csv_content", ""))
+                    elif isinstance(raw_csv, str):
+                        csv_content = raw_csv
+                    else:
+                        csv_content = str(raw_csv) if raw_csv else ""
+                    
+                    # Get suggested_filename - handle nested structure
+                    raw_filename = result.get("suggested_filename", f"{language}_results.csv")
+                    if isinstance(raw_filename, dict):
+                        suggested_filename = raw_filename.get("suggested_filename", f"{language}_results.csv")
+                    elif isinstance(raw_filename, str):
+                        suggested_filename = raw_filename
+                    else:
+                        suggested_filename = str(raw_filename) if raw_filename else f"{language}_results.csv"
+                
+                # Final safety check - ensure we have strings
+                if not isinstance(csv_content, str):
+                    csv_content = str(csv_content) if csv_content else ""
+                if not isinstance(suggested_filename, str):
+                    suggested_filename = str(suggested_filename) if suggested_filename else f"{language}_results.csv"
+                
+                print(f"DEBUG batch-noncldr: final csv_content type = {type(csv_content)}, length = {len(csv_content)}")
                 
                 return {
                     "success": True,
-                    "csv_content": csv_content if isinstance(csv_content, str) else str(csv_content),
-                    "suggested_filename": suggested_filename if isinstance(suggested_filename, str) else str(suggested_filename)
+                    "csv_content": csv_content,
+                    "suggested_filename": suggested_filename
                 }
             finally:
                 os.unlink(pairs_path)
