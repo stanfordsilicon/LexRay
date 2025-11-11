@@ -168,11 +168,22 @@ async def process_request(
                 
                 args = Args()
                 result = handle_batch_english(args)
-                # Ensure we return the correct structure
+                # Ensure we return the correct structure - handle both nested and flat responses
+                if isinstance(result, dict):
+                    csv_content = result.get("csv_content", "")
+                    if isinstance(csv_content, dict):
+                        csv_content = csv_content.get("csv_content", "")
+                    suggested_filename = result.get("suggested_filename", "english_results.csv")
+                    if isinstance(suggested_filename, dict):
+                        suggested_filename = suggested_filename.get("suggested_filename", "english_results.csv")
+                else:
+                    csv_content = ""
+                    suggested_filename = "english_results.csv"
+                
                 return {
                     "success": True,
-                    "csv_content": result.get("csv_content", ""),
-                    "suggested_filename": result.get("suggested_filename", "english_results.csv")
+                    "csv_content": csv_content if isinstance(csv_content, str) else str(csv_content),
+                    "suggested_filename": suggested_filename if isinstance(suggested_filename, str) else str(suggested_filename)
                 }
             finally:
                 os.unlink(tmp_path)
@@ -197,11 +208,22 @@ async def process_request(
                 
                 args = Args()
                 result = handle_batch_cldr(args)
-                # Ensure we return the correct structure
+                # Ensure we return the correct structure - handle both nested and flat responses
+                if isinstance(result, dict):
+                    csv_content = result.get("csv_content", "")
+                    if isinstance(csv_content, dict):
+                        csv_content = csv_content.get("csv_content", "")
+                    suggested_filename = result.get("suggested_filename", f"{language}_results.csv")
+                    if isinstance(suggested_filename, dict):
+                        suggested_filename = suggested_filename.get("suggested_filename", f"{language}_results.csv")
+                else:
+                    csv_content = ""
+                    suggested_filename = f"{language}_results.csv"
+                
                 return {
                     "success": True,
-                    "csv_content": result.get("csv_content", ""),
-                    "suggested_filename": result.get("suggested_filename", f"{language}_results.csv")
+                    "csv_content": csv_content if isinstance(csv_content, str) else str(csv_content),
+                    "suggested_filename": suggested_filename if isinstance(suggested_filename, str) else str(suggested_filename)
                 }
             finally:
                 os.unlink(tmp_path)
@@ -231,11 +253,31 @@ async def process_request(
                 
                 args = Args()
                 result = handle_batch_noncldr(args)
-                # Ensure we return the correct structure
+                
+                # Debug logging
+                print(f"DEBUG batch-noncldr: result type = {type(result)}, result = {result}")
+                
+                # Ensure we return the correct structure - handle both nested and flat responses
+                if isinstance(result, dict):
+                    csv_content = result.get("csv_content", "")
+                    # If csv_content is itself a dict (nested), extract the actual string
+                    if isinstance(csv_content, dict):
+                        csv_content = csv_content.get("csv_content", "")
+                    suggested_filename = result.get("suggested_filename", f"{language}_results.csv")
+                    # If suggested_filename is itself a dict (nested), extract the actual string
+                    if isinstance(suggested_filename, dict):
+                        suggested_filename = suggested_filename.get("suggested_filename", f"{language}_results.csv")
+                else:
+                    # Fallback if result is not a dict
+                    csv_content = ""
+                    suggested_filename = f"{language}_results.csv"
+                
+                print(f"DEBUG batch-noncldr: returning csv_content type = {type(csv_content)}, length = {len(csv_content) if isinstance(csv_content, str) else 'N/A'}")
+                
                 return {
                     "success": True,
-                    "csv_content": result.get("csv_content", ""),
-                    "suggested_filename": result.get("suggested_filename", f"{language}_results.csv")
+                    "csv_content": csv_content if isinstance(csv_content, str) else str(csv_content),
+                    "suggested_filename": suggested_filename if isinstance(suggested_filename, str) else str(suggested_filename)
                 }
             finally:
                 os.unlink(pairs_path)
