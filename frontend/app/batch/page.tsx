@@ -208,10 +208,18 @@ export default function BatchIngestion() {
       if (!res.ok || data.error) {
         throw new Error(data.error || "Processing failed");
       }
+      
+      // Ensure csv_content is a string
+      if (data.csv_content && typeof data.csv_content !== 'string') {
+        console.error("csv_content is not a string:", data.csv_content);
+        data.csv_content = String(data.csv_content);
+      }
+      
       setResults(data);
       // If CSV content is provided, trigger a download
       if (data.csv_content) {
-        const blob = new Blob([data.csv_content], { type: "text/csv;charset=utf-8;" });
+        const csvString = typeof data.csv_content === 'string' ? data.csv_content : JSON.stringify(data.csv_content);
+        const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -369,7 +377,13 @@ export default function BatchIngestion() {
           {results && !results.error && results.csv_content && (
             <div className="mt-6 p-6 bg-gray-50 rounded-md min-h-[300px] w-full max-w-6xl">
               <h3 className="font-medium text-gray-900 mb-4">Results:</h3>
-              <CSVPreview csvContent={results.csv_content} />
+              {typeof results.csv_content === 'string' ? (
+                <CSVPreview csvContent={results.csv_content} />
+              ) : (
+                <div className="text-red-600">
+                  Error: CSV content is not in the expected format. Please check the console for details.
+                </div>
+              )}
             </div>
           )}
         </div>
