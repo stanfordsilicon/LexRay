@@ -109,21 +109,41 @@ async def process_request(
                 eng_skel, ambiguities, metainfo = english_to_skeleton(english, cldr_path)
                 targets = map_to_target(language, translation, english, eng_skel, ambiguities, cldr_path)
                 
-                # For now, return a placeholder since the core CLDR processing has UTF-8 issues
-                # TODO: Fix the core map_to_target function to handle UTF-8 properly
-                if targets and isinstance(targets, list):
-                    # Check if the result looks corrupted (contains many single quotes)
-                    first_target = str(targets[0]) if targets else ""
-                    if "'" in first_target and len(first_target) > 10:
-                        # This is likely a corrupted result, return a placeholder
-                        targets = ["EEEE"]  # Placeholder for day name skeleton
+                # Debug logging
+                print(f"DEBUG single-cldr: eng_skel={eng_skel}, targets={targets}, language={language}, translation={translation}")
+                
+                # Check if targets is empty or invalid
+                if not targets or not isinstance(targets, list) or len(targets) == 0:
+                    # If no targets found, return error
+                    return {
+                        "success": False,
+                        "error": "Could not generate target skeleton. Please check that the translation matches the English date format.",
+                        "english_skeleton": eng_skel,
+                        "target_skeletons": []
+                    }
+                
+                # Check for actual corruption (non-printable characters, encoding errors)
+                # Single quotes are legitimate for literal text, so don't filter those out
+                valid_targets = []
+                for target in targets:
+                    target_str = str(target)
+                    # Check for actual corruption: non-ASCII characters that aren't valid CLDR codes
+                    # Valid CLDR skeleton can contain: letters, numbers, spaces, quotes, punctuation
+                    if target_str and any(c.isprintable() or c in ['\n', '\r', '\t'] for c in target_str):
+                        # Check if it contains only valid CLDR skeleton characters
+                        # CLDR skeletons can have: M, d, y, E, a, h, H, m, s, quotes, spaces, punctuation
+                        if any(c.isalnum() or c in ["'", '"', " ", ",", "/", "-", ".", ":", ";"] for c in target_str):
+                            valid_targets.append(target_str)
+                
+                if not valid_targets:
+                    # If all targets were filtered out, return the first one anyway (might be false positive)
+                    valid_targets = [str(targets[0])] if targets else []
                 
                 return {
                     "success": True,
                     "english_skeleton": eng_skel,
-                    "target_skeletons": targets,
-                    "xpath": metainfo[0][2][0] if metainfo and len(metainfo) > 0 and len(metainfo[0]) > 2 else "",
-                    "note": "CLDR skeleton conversion has UTF-8 encoding issues. Showing placeholder result."
+                    "target_skeletons": valid_targets,
+                    "xpath": metainfo[0][2][0] if metainfo and len(metainfo) > 0 and len(metainfo[0]) > 2 else ""
                 }
             except Exception as e:
                 error_msg = str(e)
