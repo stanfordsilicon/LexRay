@@ -11,6 +11,7 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
+import pandas as pd
 
 # Add src to path
 PROJECT_ROOT = Path(__file__).parent
@@ -170,14 +171,58 @@ async def process_request(
             if not elements_csv or elements_csv.filename is None:
                 raise HTTPException(status_code=400, detail="Elements CSV file required")
             
-            # For now, return a placeholder response
-            # TODO: Implement proper single-new processing with elements CSV
-            return {
-                "success": True,
-                "english_skeleton": "MMMM d, y",  # Placeholder
-                "target_skeletons": ["MMMM d, y"],  # Placeholder
-                "message": "Single-new mode not fully implemented yet"
-            }
+            # Save uploaded elements CSV temporarily
+            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as elements_tmp:
+                elements_content = await elements_csv.read()
+                elements_tmp.write(elements_content)
+                elements_path = elements_tmp.name
+            
+            try:
+                # Get English skeleton
+                eng_skel, ambiguities, metainfo = english_to_skeleton(english, cldr_path)
+                
+                # Load elements CSV as DataFrame
+                elements_df = pd.read_csv(elements_path)
+                
+                # Map to target using the custom elements CSV
+                targets = map_to_target(language, translation, english, eng_skel, ambiguities, cldr_path, target_df=elements_df)
+                
+                # Debug logging
+                print(f"DEBUG single-new: eng_skel={eng_skel}, targets={targets}, language={language}, translation={translation}")
+                
+                # Check if targets is empty or invalid
+                if not targets or not isinstance(targets, list) or len(targets) == 0:
+                    return {
+                        "success": False,
+                        "error": "Could not generate target skeleton. Please check that the translation matches the English date format and that the elements CSV contains the necessary date elements.",
+                        "english_skeleton": eng_skel,
+                        "target_skeletons": []
+                    }
+                
+                # Safety check: if target skeleton equals English skeleton, something went wrong
+                if targets and len(targets) == 1 and targets[0] == eng_skel:
+                    return {
+                        "success": False,
+                        "error": "Target skeleton matches English skeleton. This usually means the mapping failed. Please check that the translation is correct and that the elements CSV contains the necessary date elements.",
+                        "english_skeleton": eng_skel,
+                        "target_skeletons": []
+                    }
+                
+                return {
+                    "success": True,
+                    "english_skeleton": eng_skel,
+                    "target_skeletons": targets,
+                    "xpath": metainfo[0][2][0] if metainfo and len(metainfo) > 0 and len(metainfo[0]) > 2 else ""
+                }
+            except Exception as e:
+                error_msg = str(e)
+                return {
+                    "success": False,
+                    "error": f"Processing failed: {error_msg}",
+                    "suggestion": "Please check that the elements CSV is in the correct format and contains the necessary date elements."
+                }
+            finally:
+                os.unlink(elements_path)
         
         elif mode == "batch-english":
             if not csv:
