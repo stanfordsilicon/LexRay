@@ -250,6 +250,7 @@ async def process_request(
                         self.pairs_csv = pairs_path
                         self.elements_csv = elements_path
                         self.language = language
+                        self.cldr_path = cldr_path
                 
                 args = Args()
                 result = handle_batch_noncldr(args)
