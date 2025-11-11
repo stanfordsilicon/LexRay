@@ -139,6 +139,16 @@ async def process_request(
                     # If all targets were filtered out, return the first one anyway (might be false positive)
                     valid_targets = [str(targets[0])] if targets else []
                 
+                # Safety check: if target skeleton equals English skeleton, something went wrong
+                # This should never happen - target should be different (e.g., different order, literal text)
+                if valid_targets and len(valid_targets) == 1 and valid_targets[0] == eng_skel:
+                    return {
+                        "success": False,
+                        "error": "Target skeleton matches English skeleton. This usually means the mapping failed. Please check that the translation is correct and matches the English date format.",
+                        "english_skeleton": eng_skel,
+                        "target_skeletons": []
+                    }
+                
                 return {
                     "success": True,
                     "english_skeleton": eng_skel,
