@@ -32,6 +32,9 @@ export default function SingleIngestion() {
   const [customFile, setCustomFile] = useState<File | null>(null);
   const [newTranslation, setNewTranslation] = useState("");
 
+  // Template example modal
+  const [showExample, setShowExample] = useState<string | null>(null);
+
   useEffect(() => {
     fetch("/api/languages")
       .then((r) => r.json() as Promise<LanguageResponse>)
@@ -239,6 +242,116 @@ export default function SingleIngestion() {
     </button>
   );
 
+  const TemplateLink = ({ href, label, exampleType }: { href: string; label: string; exampleType: string }) => {
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const bubbleRef = useRef<HTMLDivElement>(null);
+
+    const getExample = () => {
+      switch (exampleType) {
+        case "lexicon":
+          return {
+            title: "Target Language Lexicon",
+            content: (
+              <div className="space-y-3 text-sm">
+                <p className="text-slate-700">
+                  This template should contain date elements (days, months, etc.) in your target language. 
+                  Each row should include the Header, XPath, Code, English term, and the Translation in your target language.
+                </p>
+                <p className="text-slate-700">
+                  Click the link below to download a Spanish example CSV file that shows the expected format:
+                </p>
+                <div className="pt-2">
+                  <a
+                    href="/spanish_template.csv"
+                    download
+                    className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                  >
+                    Download Spanish Example CSV
+                  </a>
+                </div>
+              </div>
+            ),
+          };
+        case "translations":
+          return {
+            title: "Target Language Translations",
+            content: (
+              <div className="space-y-3 text-sm">
+                <p className="text-slate-700">
+                  This template should contain pairs of English date expressions and their exact translations in your target language. 
+                  Each row should have the English expression in the first column and the translation in the second column.
+                </p>
+                <p className="text-slate-700">
+                  Click the link below to download a Spanish example CSV file that shows the expected format:
+                </p>
+                <div className="pt-2">
+                  <a
+                    href="/english_spanish_template.csv"
+                    download
+                    className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                  >
+                    Download Spanish Example CSV
+                  </a>
+                </div>
+              </div>
+            ),
+          };
+        default:
+          return null;
+      }
+    };
+
+    const example = getExample();
+    const isOpen = showExample === exampleType;
+
+    return (
+      <span className="relative inline-flex items-center gap-1">
+        <a href={href} className="font-medium text-blue-600 hover:underline" download>
+          {label}
+        </a>
+        {example && (
+          <>
+            <button
+              ref={buttonRef}
+              type="button"
+              onClick={() => setShowExample(isOpen ? null : exampleType)}
+              className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-xs text-slate-600 hover:bg-slate-300"
+              title="View Spanish example"
+            >
+              ?
+            </button>
+            {isOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowExample(null)}
+                />
+                <div
+                  ref={bubbleRef}
+                  className="absolute left-0 top-6 z-50 w-80 rounded-lg border border-slate-200 bg-white p-4 shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-900">{example.title}</h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowExample(null)}
+                      className="flex h-6 w-6 items-center justify-center rounded-full text-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                      aria-label="Close"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {example.content}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </span>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-white py-12">
       <div className="mx-auto w-full max-w-3xl px-6">
@@ -352,9 +465,7 @@ export default function SingleIngestion() {
                   />
                   <p className="mt-2 text-sm text-slate-500">
                     Download template:{" "}
-                    <a href="/cldr_template.csv" className="font-medium text-blue-600 hover:underline" download>
-                      Target language lexicon
-                    </a>
+                    <TemplateLink href="/cldr_template.csv" label="Target language lexicon" exampleType="lexicon" />
                   </p>
                 </div>
                 <div>
