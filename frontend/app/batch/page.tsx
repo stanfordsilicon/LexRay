@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 // CSV Preview Component
@@ -151,14 +151,68 @@ export default function BatchIngestion() {
       .catch(() => setAvailableLanguages([]));
   }, []);
 
+  const FileUploadBox = ({
+    id,
+    accept,
+    file,
+    onFileChange,
+  }: {
+    id: string;
+    accept: string;
+    file: File | null;
+    onFileChange: (selected: File | null) => void;
+  }) => {
+    const inputRef = useRef<HTMLInputElement | null>(null);
+
+    return (
+      <div>
+        <input
+          ref={inputRef}
+          id={id}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => {
+            const selectedFile = e.target.files?.[0] ?? null;
+            onFileChange(selectedFile);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 transition hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+        >
+          {file ? file.name : "Choose file"}
+        </button>
+      </div>
+    );
+  };
+
+  const resetStateForTab = (tab: TabKey) => {
+    setError(null);
+    setResults(null);
+    setIsProcessing(false);
+
+    setEnglishListFile(null);
+    setBilingualPairsFile(null);
+    setDateElementsFile(null);
+    setCustomLanguageName("");
+    setSelectedLanguage("");
+  };
+
   const TabButton = ({ tab, label }: { tab: TabKey; label: string }) => (
     <button
       type="button"
-      onClick={() => setActiveTab(tab)}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+      onClick={() => {
+        if (tab !== activeTab) {
+          resetStateForTab(tab);
+          setActiveTab(tab);
+        }
+      }}
+      className={`px-4 py-2 text-sm font-medium transition ${
         activeTab === tab
-          ? "bg-indigo-200 text-indigo-900"
-          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          ? "bg-blue-600 text-white"
+          : "bg-transparent text-slate-600 hover:text-slate-900"
       }`}
     >
       {label}
@@ -247,62 +301,63 @@ export default function BatchIngestion() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-2xl mx-auto px-4">
+    <div className="min-h-screen bg-white py-12">
+      <div className="mx-auto w-full max-w-3xl px-6">
         <div className="mb-8">
-          <Link href="/" className="text-blue-500 hover:text-blue-600 mb-4 inline-block">
-            ← Back to Home
+          <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700">
+            <span>←</span>
+            <span>Back to home</span>
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Batch Processing</h1>
-          <p className="text-gray-600 mt-2">Convert multiple date expressions at once.</p>
+          <h1 className="text-3xl font-semibold text-slate-900">Batch processing</h1>
+          <p className="mt-2 text-base text-slate-600">Convert multiple date expressions at once.</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
-          {/* Tabs */}
-          <div className="flex gap-2">
+        <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
             <TabButton tab="english" label="English" />
             <TabButton tab="cldr" label="CLDR language" />
             <TabButton tab="noncldr" label="Non-CLDR language" />
           </div>
 
           {error && (
-            <div className="p-3 rounded border border-red-200 bg-red-50 text-red-700 text-sm">
-              {error}
+            <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Invalid input. Please re-enter.
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="mt-8 space-y-6">
             {activeTab === "english" && (
               <>
                 <div>
-                  <label htmlFor="englishList" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="englishList" className="mb-2 block text-sm font-medium text-slate-700">
                     Upload CSV of English expressions
                   </label>
-                  <input
+                  <FileUploadBox
                     id="englishList"
-                    type="file"
                     accept=".csv"
-                    onChange={(e) => setEnglishListFile(e.target.files?.[0] || null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    file={englishListFile}
+                    onFileChange={(file) => setEnglishListFile(file)}
                   />
-                  <p className="text-sm text-gray-600 mt-2">
-                    Download template: <a className="text-blue-600 hover:underline" href="/batch_english_template.csv" download>English list (CSV)</a>
-                  </p>
+                  <div className="mt-2">
+                    <a className="text-sm font-medium text-blue-600 hover:underline" href="/batch_english_template.csv" download>
+                      Download template: English expressions
+                    </a>
+                  </div>
                 </div>
               </>
             )}
 
             {activeTab === "cldr" && (
-              <>
+              <div className="space-y-4">
                 <div>
-                  <label htmlFor="cldrLang" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="cldrLang" className="mb-2 block text-sm font-medium text-slate-700">
                     Choose a CLDR language
                   </label>
                   <select
                     id="cldrLang"
                     value={selectedLanguage}
                     onChange={(e) => setSelectedLanguage(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   >
                     <option value="">Choose language</option>
                     {availableLanguages.map((lang) => (
@@ -313,27 +368,28 @@ export default function BatchIngestion() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="pairsFile" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="pairsFile" className="mb-2 block text-sm font-medium text-slate-700">
                     Upload CSV with English expressions and exact translations
                   </label>
-                  <input
+                  <FileUploadBox
                     id="pairsFile"
-                    type="file"
                     accept=".csv"
-                    onChange={(e) => setBilingualPairsFile(e.target.files?.[0] || null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    file={bilingualPairsFile}
+                    onFileChange={(file) => setBilingualPairsFile(file)}
                   />
-                  <p className="text-sm text-gray-600 mt-2">
-                    Download template: <a className="text-blue-600 hover:underline" href="/batch_bilingual_template.csv" download>English, translation pairs (CSV)</a>
-                  </p>
+                  <div className="mt-2">
+                    <a className="text-sm font-medium text-blue-600 hover:underline" href="/batch_bilingual_template.csv" download>
+                      Download template: Target language translations
+                    </a>
+                  </div>
                 </div>
-              </>
+              </div>
             )}
 
             {activeTab === "noncldr" && (
-              <>
+              <div className="space-y-4">
                 <div>
-                  <label htmlFor="customLanguageName" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="customLanguageName" className="mb-2 block text-sm font-medium text-slate-700">
                     Language name
                   </label>
                   <input
@@ -341,45 +397,47 @@ export default function BatchIngestion() {
                     type="text"
                     value={customLanguageName}
                     onChange={(e) => setCustomLanguageName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
                 <div>
-                  <label htmlFor="dateElementsFile" className="block text-sm font-medium text-gray-700 mb-2">
-                    Upload spreadsheet of date elements
+                  <label htmlFor="dateElementsFile" className="mb-2 block text-sm font-medium text-slate-700">
+                    Upload CSV with date elements in the target language
                   </label>
-                  <input
+                  <FileUploadBox
                     id="dateElementsFile"
-                    type="file"
                     accept=".csv,.xlsx,.xls"
-                    onChange={(e) => setDateElementsFile(e.target.files?.[0] || null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    file={dateElementsFile}
+                    onFileChange={(file) => setDateElementsFile(file)}
                   />
-                  <p className="text-sm text-gray-600 mt-2">
-                    Download template: <a className="text-blue-600 hover:underline" href="/cldr_template.csv" download>CLDR template (CSV)</a>
-                  </p>
+                  <div className="mt-2">
+                    <a className="text-sm font-medium text-blue-600 hover:underline" href="/cldr_template.csv" download>
+                      Download template: Target language lexicon
+                    </a>
+                  </div>
                 </div>
                 <div>
-                  <label htmlFor="pairsFileNon" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="pairsFileNon" className="mb-2 block text-sm font-medium text-slate-700">
                     Upload CSV with English expressions and exact translations
                   </label>
-                  <input
+                  <FileUploadBox
                     id="pairsFileNon"
-                    type="file"
                     accept=".csv"
-                    onChange={(e) => setBilingualPairsFile(e.target.files?.[0] || null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    file={bilingualPairsFile}
+                    onFileChange={(file) => setBilingualPairsFile(file)}
                   />
-                  <p className="text-sm text-gray-600 mt-2">
-                    Download template: <a className="text-blue-600 hover:underline" href="/batch_bilingual_template.csv" download>English, translation pairs (CSV)</a>
-                  </p>
+                  <div className="mt-2">
+                    <a className="text-sm font-medium text-blue-600 hover:underline" href="/batch_bilingual_template.csv" download>
+                      Download template: Target language translations
+                    </a>
+                  </div>
                 </div>
-              </>
+              </div>
             )}
 
             <button
               type="submit"
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
               disabled={isProcessing}
             >
               {isProcessing ? "Processing..." : "Process Batch"}
@@ -387,12 +445,12 @@ export default function BatchIngestion() {
           </form>
 
           {results && !results.error && results.csv_content && (
-            <div className="mt-6 p-6 bg-gray-50 rounded-md min-h-[300px] w-full max-w-6xl">
-              <h3 className="font-medium text-gray-900 mb-4">Results:</h3>
+            <div className="mt-8 rounded-lg border border-slate-200 bg-slate-50 p-6">
+              <h3 className="mb-4 text-sm font-semibold text-slate-900">Results</h3>
               {typeof results.csv_content === 'string' ? (
                 <CSVPreview csvContent={results.csv_content} />
               ) : (
-                <div className="text-red-600">
+                <div className="text-sm text-red-600">
                   Error: CSV content is not in the expected format. Please check the console for details.
                 </div>
               )}
