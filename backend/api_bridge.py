@@ -45,6 +45,93 @@ from src.core.constants import (
     normalize_english_skeleton,
 )
 
+# Mapping from English skeletons to Xpstr values
+SKELETON_TO_XPSTR = {
+    "d": "76c392ebd666b0bd",
+    "ccc": "140cf3a4c102803b",
+    "d E": "7676ac749ef2cc62",
+    "L": "959cbb42bb2962f",
+    "M/d": "5abbc8f185730579",
+    "E, M/d": "2d123e52098e97f2",
+    "LLL": "e11a0c5e17bc068",
+    "MMM d": "3124a5a401a45c9",
+    "E, MMM d": "7f7bdb9593a8cc11",
+    "MMMM d": "4f2a987be79e4e60",
+    "y": "1a6ebe1471a0c10e",
+    "M/y": "1b1e9f12a8fa3124",
+    "M/d/y": "4af189b39e4e8ddf",
+    "E, M/d/y": "695f62f84cfa7807",
+    "MMM y": "6fea4427938536b8",
+    "MMM d, y": "531768795c3cdb89",
+    "E, MMM d, y": "7f63e28000f4612e",
+    "MMMM y": "21dded0fd50ba37e",
+    "d–d": "233a2f04cd0f85ce",
+    "M–M": "5d6266e6fa97e95b",
+    "M/d–M/d": "49a0d610084123b",
+    "E, M/d–E, M/d": "18084ea0d3dfbabf",
+    "MMM–MMM": "268fa3faf41b2154",
+    "MMM d–d": "2ab400991072dbb2",
+    "MMM d–MMM d": "1a013fd44bcfa040",
+    "E, MMM d–E, MMM d": "61a41721d307be57",
+    "y–y": "6433efb78f40e99a",
+    "M/y–M/y": "3c6f0ce3063dc961",
+    "M/d/y–M/d/y": "1937499d61343fb7",
+    "E, M/d/y–E, M/d/y": "153a46c24508d0d4",
+    "MMM–MMM y": "702784b915bcc899",
+    "MMM y–MMM y": "6be28cb008f1aa65",
+    "MMM d–d, y": "563c1e00ebce475e",
+    "MMM d–MMM d, y": "22b38b49476d5bfd",
+    "MMM d, y–MMM d, y": "44a032783d6ebae7",
+    "E, MMM d–E, MMM d, y": "1d5027db323f2929",
+    "E, MMM d, y–E, MMM d, y": "4557fe31de6087e0",
+    "MMMM–MMMM y": "3fedd19e7c6533e3",
+    "MMMM y–MMMM y": "7093f3bd95acbecc",
+    "EEEE, MMMM d, y": "562f98c4c6b2e321",
+    "MMMM d, y": "5d6ea98708b9b43b",
+    "MMM d, y": "14164b88b71705de",
+    "M/d/yy": "57dac0d1b36c1261",
+    "MM-dd": "5caadf5d118016f5",
+    "MM-dd, E": "de5cfd160ab31d6",
+    "MMM d": "5b43c1398ea8b5a7",
+    "MMM d, E": "7d2f93230e368caf",
+    "MMMM d": "10090e2ed7afe7c2",
+    "y-MM": "14a7fa5a8a306d0d",
+    "y-MM-dd": "4bd4cef0273d5611",
+    "y-MM-dd, E": "b7411728a36ad24",
+    "y MMM": "59e614e6c0f56a0a",
+    "y MMM d": "333b185b7068e865",
+    "y MMM d, E": "3cefebacf3faa4b8",
+    "y MMMM": "118ee93e94934ef4",
+}
+
+
+def get_xpstr_from_skeleton(english_skeleton: str) -> str:
+    """
+    Get Xpstr value from English skeleton pattern.
+    
+    Args:
+        english_skeleton: English skeleton pattern (e.g., "E, MMM d")
+        
+    Returns:
+        Xpstr value if found, empty string otherwise
+    """
+    if not english_skeleton or english_skeleton == "ERROR":
+        return ""
+    
+    # Normalize the skeleton to handle dash variations
+    normalized = normalize_english_skeleton(english_skeleton)
+    
+    # Try exact match first
+    if normalized in SKELETON_TO_XPSTR:
+        return SKELETON_TO_XPSTR[normalized]
+    
+    # Try original skeleton
+    if english_skeleton in SKELETON_TO_XPSTR:
+        return SKELETON_TO_XPSTR[english_skeleton]
+    
+    # Return empty string if not found
+    return ""
+
 
 def english_to_skeleton(english_text: str, cldr_path: str):
     english_tokens = tokenize_date_expression(english_text)
@@ -217,7 +304,7 @@ def handle_single_new(args):
 
 def handle_batch_english(args):
     out = io.StringIO()
-    writer = csv.DictWriter(out, fieldnames=["ENGLISH", "ENGLISH_SKELETON"]) 
+    writer = csv.DictWriter(out, fieldnames=["ENGLISH", "ENGLISH_SKELETON", "Xpstr"]) 
     writer.writeheader()
     
     try:
@@ -234,10 +321,11 @@ def handle_batch_english(args):
                 try:
                     result = english_to_skeleton(text, args.cldr_path)
                     eng_skel = result[0]
-                    writer.writerow({"ENGLISH": text, "ENGLISH_SKELETON": eng_skel})
+                    xpstr = get_xpstr_from_skeleton(eng_skel)
+                    writer.writerow({"ENGLISH": text, "ENGLISH_SKELETON": eng_skel, "Xpstr": xpstr})
                 except Exception as e:
                     # Put ERROR for this specific row
-                    writer.writerow({"ENGLISH": text, "ENGLISH_SKELETON": "ERROR"})
+                    writer.writerow({"ENGLISH": text, "ENGLISH_SKELETON": "ERROR", "Xpstr": ""})
                     
     except Exception as e:
         if "CSV must contain" in str(e):
@@ -250,7 +338,7 @@ def handle_batch_english(args):
 
 def handle_batch_cldr(args):
     out = io.StringIO()
-    writer = csv.DictWriter(out, fieldnames=["ENGLISH", "TARGET", "ENGLISH_SKELETON", "TARGET_SKELETON"]) 
+    writer = csv.DictWriter(out, fieldnames=["ENGLISH", "TARGET", "ENGLISH_SKELETON", "TARGET_SKELETON", "Xpstr"]) 
     writer.writeheader()
     
     try:
@@ -270,11 +358,13 @@ def handle_batch_cldr(args):
                     eng_skel = result[0]
                     ambiguities = result[1]
                     targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path)
+                    xpstr = get_xpstr_from_skeleton(eng_skel)
                     writer.writerow({
                         "ENGLISH": english,
                         "TARGET": target,
                         "ENGLISH_SKELETON": eng_skel,
-                        "TARGET_SKELETON": "; ".join(targets) if targets else "ERROR"
+                        "TARGET_SKELETON": "; ".join(targets) if targets else "ERROR",
+                        "Xpstr": xpstr
                     })
                 except Exception as e:
                     # Put ERROR for this specific row
@@ -283,7 +373,8 @@ def handle_batch_cldr(args):
                         "ENGLISH": english,
                         "TARGET": target,
                         "ENGLISH_SKELETON": "ERROR",
-                        "TARGET_SKELETON": "ERROR"
+                        "TARGET_SKELETON": "ERROR",
+                        "Xpstr": ""
                     })
                     
     except Exception as e:
@@ -297,7 +388,7 @@ def handle_batch_cldr(args):
 
 def handle_batch_noncldr(args):
     out = io.StringIO()
-    writer = csv.DictWriter(out, fieldnames=["ENGLISH", "TARGET", "ENGLISH_SKELETON", "TARGET_SKELETON"]) 
+    writer = csv.DictWriter(out, fieldnames=["ENGLISH", "TARGET", "ENGLISH_SKELETON", "TARGET_SKELETON", "Xpstr"]) 
     writer.writeheader()
     
     try:
@@ -320,11 +411,13 @@ def handle_batch_noncldr(args):
                     eng_skel = result[0]
                     ambiguities = result[1]
                     targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path, target_df=df)
+                    xpstr = get_xpstr_from_skeleton(eng_skel)
                     writer.writerow({
                         "ENGLISH": english,
                         "TARGET": target,
                         "ENGLISH_SKELETON": eng_skel,
-                        "TARGET_SKELETON": "; ".join(targets) if targets else "ERROR"
+                        "TARGET_SKELETON": "; ".join(targets) if targets else "ERROR",
+                        "Xpstr": xpstr
                     })
                 except Exception as e:
                     # Put ERROR for this specific row
@@ -333,7 +426,8 @@ def handle_batch_noncldr(args):
                         "ENGLISH": english,
                         "TARGET": target,
                         "ENGLISH_SKELETON": "ERROR",
-                        "TARGET_SKELETON": "ERROR"
+                        "TARGET_SKELETON": "ERROR",
+                        "Xpstr": ""
                     })
                     
     except Exception as e:

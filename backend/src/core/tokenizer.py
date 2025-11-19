@@ -80,7 +80,7 @@ def semantic_tokenize(expression, date_dict, lexicon):
     # Define patterns
     punctuation_pattern = r'[/,\.\-–—،፣]'  # Added Arabic comma ، and Amharic comma ፣
     number_pattern = r'\d+'
-    word_pattern = r'[a-zA-Z]+'  # Match word characters (letters only)
+    word_pattern = r'[\p{L}\p{M}]+'  # Match Unicode letters and marks (supports accented characters and non-Latin scripts)
 
     tokens = []
     i = 0
@@ -101,7 +101,7 @@ def semantic_tokenize(expression, date_dict, lexicon):
 
         # Check for words that contain numbers (like "Fi4", "2nd", etc.)
         # These should be treated as complete words and looked up in the lexicon
-        word_with_number_match = regex.match(r'[a-zA-Z]+\d+[a-zA-Z]*|\d+[a-zA-Z]+', expression[i:])
+        word_with_number_match = regex.match(r'[\p{L}\p{M}]+\d+[\p{L}\p{M}]*|\d+[\p{L}\p{M}]+', expression[i:])
         if word_with_number_match:
             word_with_number = word_with_number_match.group()
             
@@ -123,7 +123,7 @@ def semantic_tokenize(expression, date_dict, lexicon):
                     number_end = i + len(number)
                     
                     if (number_end < len(expression) and 
-                        expression[number_end].isalpha() and 
+                        regex.match(r'[\p{L}\p{M}]', expression[number_end]) and 
                         not expression[number_end].isspace()):
                         
                         # This might be a compound token like "16de" - find the full word
@@ -158,7 +158,7 @@ def semantic_tokenize(expression, date_dict, lexicon):
             
             # Check if there's text immediately following the number (compound token)
             if (number_end < len(expression) and 
-                expression[number_end].isalpha() and 
+                regex.match(r'[\p{L}\p{M}]', expression[number_end]) and 
                 not expression[number_end].isspace()):
                 
                 # This might be a compound token like "16de" - find the full word
@@ -200,11 +200,11 @@ def semantic_tokenize(expression, date_dict, lexicon):
                     end_pos = i + len(date_element)
                     
                     # Check start boundary
-                    if start_pos > 0 and expression[start_pos-1].isalpha():
+                    if start_pos > 0 and regex.match(r'[\p{L}\p{M}]', expression[start_pos-1]):
                         continue
                     
                     # Check end boundary
-                    if end_pos < len(expression) and expression[end_pos].isalpha():
+                    if end_pos < len(expression) and regex.match(r'[\p{L}\p{M}]', expression[end_pos]):
                         continue
                     
                     # Found valid multi-word date element
@@ -243,7 +243,7 @@ def semantic_tokenize(expression, date_dict, lexicon):
             continue
 
         # Check for single words (including abbreviated forms with periods)
-        word_match = regex.match(r'[a-zA-Z]+\.?', expression[i:])  # Allow periods after words
+        word_match = regex.match(r'[\p{L}\p{M}]+\.?', expression[i:])  # Allow periods after words, supports Unicode
         if word_match:
             word = word_match.group()
             
@@ -287,7 +287,7 @@ def semantic_tokenize(expression, date_dict, lexicon):
                 end_pos = i + len(date_element)
 
                 # Check start boundary
-                if start_pos > 0 and expression[start_pos-1].isalpha():
+                if start_pos > 0 and regex.match(r'[\p{L}\p{M}]', expression[start_pos-1]):
                     continue
 
                 # Note: We intentionally allow a following letter so that
