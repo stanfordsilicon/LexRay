@@ -115,22 +115,26 @@ def get_xpstr_from_skeleton(english_skeleton: str) -> str:
     Returns:
         Xpstr value if found, empty string otherwise
     """
-    if not english_skeleton or english_skeleton == "ERROR":
+    try:
+        if not english_skeleton or english_skeleton == "ERROR":
+            return ""
+        
+        # Normalize the skeleton to handle dash variations
+        normalized = normalize_english_skeleton(english_skeleton)
+        
+        # Try exact match first
+        if normalized in SKELETON_TO_XPSTR:
+            return SKELETON_TO_XPSTR[normalized]
+        
+        # Try original skeleton
+        if english_skeleton in SKELETON_TO_XPSTR:
+            return SKELETON_TO_XPSTR[english_skeleton]
+        
+        # Return empty string if not found
         return ""
-    
-    # Normalize the skeleton to handle dash variations
-    normalized = normalize_english_skeleton(english_skeleton)
-    
-    # Try exact match first
-    if normalized in SKELETON_TO_XPSTR:
-        return SKELETON_TO_XPSTR[normalized]
-    
-    # Try original skeleton
-    if english_skeleton in SKELETON_TO_XPSTR:
-        return SKELETON_TO_XPSTR[english_skeleton]
-    
-    # Return empty string if not found
-    return ""
+    except Exception:
+        # If anything goes wrong, return empty string to prevent batch processing from failing
+        return ""
 
 
 def english_to_skeleton(english_text: str, cldr_path: str):
@@ -321,10 +325,16 @@ def handle_batch_english(args):
                 try:
                     result = english_to_skeleton(text, args.cldr_path)
                     eng_skel = result[0]
-                    xpstr = get_xpstr_from_skeleton(eng_skel)
+                    try:
+                        xpstr = get_xpstr_from_skeleton(eng_skel)
+                    except Exception as xpstr_error:
+                        # If Xpstr lookup fails, continue with empty string
+                        print(f"Warning: Xpstr lookup failed for skeleton '{eng_skel}': {xpstr_error}")
+                        xpstr = ""
                     writer.writerow({"ENGLISH": text, "ENGLISH_SKELETON": eng_skel, "Xpstr": xpstr})
                 except Exception as e:
                     # Put ERROR for this specific row
+                    print(f"Error processing row {row_num}: {text}: {str(e)}")
                     writer.writerow({"ENGLISH": text, "ENGLISH_SKELETON": "ERROR", "Xpstr": ""})
                     
     except Exception as e:
@@ -358,7 +368,12 @@ def handle_batch_cldr(args):
                     eng_skel = result[0]
                     ambiguities = result[1]
                     targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path)
-                    xpstr = get_xpstr_from_skeleton(eng_skel)
+                    try:
+                        xpstr = get_xpstr_from_skeleton(eng_skel)
+                    except Exception as xpstr_error:
+                        # If Xpstr lookup fails, continue with empty string
+                        print(f"Warning: Xpstr lookup failed for skeleton '{eng_skel}': {xpstr_error}")
+                        xpstr = ""
                     writer.writerow({
                         "ENGLISH": english,
                         "TARGET": target,
@@ -369,6 +384,8 @@ def handle_batch_cldr(args):
                 except Exception as e:
                     # Put ERROR for this specific row
                     print(f"Error processing row {row_num}: {english} -> {target}: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
                     writer.writerow({
                         "ENGLISH": english,
                         "TARGET": target,
@@ -411,7 +428,12 @@ def handle_batch_noncldr(args):
                     eng_skel = result[0]
                     ambiguities = result[1]
                     targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path, target_df=df)
-                    xpstr = get_xpstr_from_skeleton(eng_skel)
+                    try:
+                        xpstr = get_xpstr_from_skeleton(eng_skel)
+                    except Exception as xpstr_error:
+                        # If Xpstr lookup fails, continue with empty string
+                        print(f"Warning: Xpstr lookup failed for skeleton '{eng_skel}': {xpstr_error}")
+                        xpstr = ""
                     writer.writerow({
                         "ENGLISH": english,
                         "TARGET": target,
@@ -422,6 +444,8 @@ def handle_batch_noncldr(args):
                 except Exception as e:
                     # Put ERROR for this specific row
                     print(f"Error processing row {row_num}: {english} -> {target}: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
                     writer.writerow({
                         "ENGLISH": english,
                         "TARGET": target,
