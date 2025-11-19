@@ -1,3 +1,60 @@
+VALID_ENGLISH_SKELETONS = {
+    "d",
+    "ccc",
+    "d E",
+    "L",
+    "M/d",
+    "E, M/d",
+    "LLL",
+    "MMM d",
+    "E, MMM d",
+    "MMMM d",
+    "y",
+    "M/y",
+    "M/d/y",
+    "E, M/d/y",
+    "MMM y",
+    "MMM d, y",
+    "E, MMM d, y",
+    "MMMM y",
+    "d–d",
+    "M–M",
+    "M/d–M/d",
+    "E, M/d–E, M/d",
+    "MMM–MMM",
+    "MMM d–d",
+    "MMM d–MMM d",
+    "E, MMM d–E, MMM d",
+    "y–y",
+    "M/y–M/y",
+    "M/d/y–M/d/y",
+    "E, M/d/y–E, M/d/y",
+    "MMM–MMM y",
+    "MMM y–MMM y",
+    "MMM d–d, y",
+    "MMM d–MMM d, y",
+    "MMM d, y–MMM d, y",
+    "E, MMM d–E, MMM d, y",
+    "E, MMM d, y–E, MMM d, y",
+    "MMMM–MMMM y",
+    "MMMM y–MMMM y",
+    "EEEE, MMMM d, y",
+    "MMMM d, y",
+    "MMM d, y",
+    "M/d/yy",
+    "MM-dd",
+    "MM-dd, E",
+    "MMM d",
+    "MMM d, E",
+    "MMMM d",
+    "y-MM",
+    "y-MM-dd",
+    "y-MM-dd, E",
+    "y MMM",
+    "y MMM d",
+    "y MMM d, E",
+    "y MMMM",
+}
 # -*- coding: utf-8 -*-
 """
 Constants for CLDR Date Skeleton Conversion
@@ -78,6 +135,86 @@ ENGLISH_LEXICON = [
     'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
     'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
 ]
+
+def normalize_english_skeleton(value: str) -> str:
+    """
+    Normalize skeleton strings for comparison (dash type and whitespace).
+    """
+    if not isinstance(value, str):
+        return value
+    normalized = value.replace("—", "–").replace("-", "–")
+    normalized = normalized.replace(" – ", "–").replace("– ", "–").replace(" –", "–")
+    normalized = " ".join(normalized.split())
+    return normalized
+
+
+# Valid English skeletons whitelist (master list)
+RAW_VALID_ENGLISH_SKELETONS = [
+    "LLLL",
+    "LLL",
+    "LLLLL",
+    "cccc",
+    "c",
+    "cccccc",
+    "ccccc",
+    "d",
+    "ccc",
+    "d E",
+    "L",
+    "M/d",
+    "E, M/d",
+    "LLL",
+    "MMM d",
+    "E, MMM d",
+    "MMMM d",
+    "y",
+    "M/y",
+    "M/d/y",
+    "E, M/d/y",
+    "MMM y",
+    "MMM d, y",
+    "E, MMM d, y",
+    "MMMM y",
+    "d–d",
+    "M–M",
+    "M/d–M/d",
+    "E, M/d–E, M/d",
+    "MMM–MMM",
+    "MMM d–d",
+    "MMM d–MMM d",
+    "E, MMM d–E, MMM d",
+    "y–y",
+    "M/y–M/y",
+    "M/d/y–M/d/y",
+    "E, M/d/y–E, M/d/y",
+    "MMM–MMM y",
+    "MMM y–MMM y",
+    "MMM d–d, y",
+    "MMM d–MMM d, y",
+    "MMM d, y–MMM d, y",
+    "E, MMM d–E, MMM d, y",
+    "E, MMM d, y–E, MMM d, y",
+    "MMMM–MMMM y",
+    "MMMM y–MMMM y",
+    "EEEE, MMMM d, y",
+    "MMMM d, y",
+    "MMM d, y",
+    "M/d/yy",
+    "MM-dd",
+    "MM-dd, E",
+    "MMM d",
+    "MMM d, E",
+    "MMMM d",
+    "y-MM",
+    "y-MM-dd",
+    "y-MM-dd, E",
+    "y MMM",
+    "y MMM d",
+    "y MMM d, E",
+    "y MMMM",
+]
+
+VALID_ENGLISH_SKELETONS = {normalize_english_skeleton(item) for item in RAW_VALID_ENGLISH_SKELETONS}
 
 # Indexing for disambiguation
 MONTH_INDEXING = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]

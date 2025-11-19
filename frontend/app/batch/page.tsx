@@ -180,9 +180,18 @@ export default function BatchIngestion() {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 transition hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          className="flex w-full items-center justify-between rounded-lg border border-slate-300 px-3 py-2 text-left text-sm transition hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
         >
-          {file ? file.name : "Choose file"}
+          {file ? (
+            <span className="flex w-full items-center gap-2 text-slate-700">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-xs font-semibold text-white">
+                ✓
+              </span>
+              <span className="max-w-[18rem] truncate">{file.name}</span>
+            </span>
+          ) : (
+            <span className="text-slate-500">Choose file</span>
+          )}
         </button>
       </div>
     );
@@ -209,10 +218,10 @@ export default function BatchIngestion() {
           setActiveTab(tab);
         }
       }}
-      className={`px-4 py-2 text-sm font-medium transition ${
+      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
         activeTab === tab
-          ? "bg-blue-600 text-white"
-          : "bg-transparent text-slate-600 hover:text-slate-900"
+          ? "bg-blue-600 text-white shadow-sm"
+          : "bg-slate-100 text-slate-600 hover:text-slate-900"
       }`}
     >
       {label}
@@ -303,17 +312,16 @@ export default function BatchIngestion() {
   return (
     <div className="min-h-screen bg-white py-12">
       <div className="mx-auto w-full max-w-3xl px-6">
-        <div className="mb-8">
-          <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700">
-            <span>←</span>
-            <span>Back to home</span>
+        <div className="mb-10">
+          <Link href="/" className="mb-4 inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-700">
+            ← Back to home
           </Link>
           <h1 className="text-3xl font-semibold text-slate-900">Batch processing</h1>
           <p className="mt-2 text-base text-slate-600">Convert multiple date expressions at once.</p>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="flex flex-wrap gap-2">
             <TabButton tab="english" label="English" />
             <TabButton tab="cldr" label="CLDR language" />
             <TabButton tab="noncldr" label="Non-CLDR language" />
@@ -338,11 +346,12 @@ export default function BatchIngestion() {
                     file={englishListFile}
                     onFileChange={(file) => setEnglishListFile(file)}
                   />
-                  <div className="mt-2">
-                    <a className="text-sm font-medium text-blue-600 hover:underline" href="/batch_english_template.csv" download>
-                      Download template: English expressions
+                  <p className="mt-2 text-sm text-slate-500">
+                    Download template:{" "}
+                    <a className="font-medium text-blue-600 hover:underline" href="/batch_english_template.csv" download>
+                      English expressions
                     </a>
-                  </div>
+                  </p>
                 </div>
               </>
             )}
@@ -377,11 +386,12 @@ export default function BatchIngestion() {
                     file={bilingualPairsFile}
                     onFileChange={(file) => setBilingualPairsFile(file)}
                   />
-                  <div className="mt-2">
-                    <a className="text-sm font-medium text-blue-600 hover:underline" href="/batch_bilingual_template.csv" download>
-                      Download template: Target language translations
+                  <p className="mt-2 text-sm text-slate-500">
+                    Download template:{" "}
+                    <a className="font-medium text-blue-600 hover:underline" href="/batch_bilingual_template.csv" download>
+                      Target language translations
                     </a>
-                  </div>
+                  </p>
                 </div>
               </div>
             )}
@@ -410,11 +420,12 @@ export default function BatchIngestion() {
                     file={dateElementsFile}
                     onFileChange={(file) => setDateElementsFile(file)}
                   />
-                  <div className="mt-2">
-                    <a className="text-sm font-medium text-blue-600 hover:underline" href="/cldr_template.csv" download>
-                      Download template: Target language lexicon
+                  <p className="mt-2 text-sm text-slate-500">
+                    Download template:{" "}
+                    <a className="font-medium text-blue-600 hover:underline" href="/cldr_template.csv" download>
+                      Target language lexicon
                     </a>
-                  </div>
+                  </p>
                 </div>
                 <div>
                   <label htmlFor="pairsFileNon" className="mb-2 block text-sm font-medium text-slate-700">
@@ -426,18 +437,19 @@ export default function BatchIngestion() {
                     file={bilingualPairsFile}
                     onFileChange={(file) => setBilingualPairsFile(file)}
                   />
-                  <div className="mt-2">
-                    <a className="text-sm font-medium text-blue-600 hover:underline" href="/batch_bilingual_template.csv" download>
-                      Download template: Target language translations
+                  <p className="mt-2 text-sm text-slate-500">
+                    Download template:{" "}
+                    <a className="font-medium text-blue-600 hover:underline" href="/batch_bilingual_template.csv" download>
+                      Target language translations
                     </a>
-                  </div>
+                  </p>
                 </div>
               </div>
             )}
 
             <button
               type="submit"
-              className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
               disabled={isProcessing}
             >
               {isProcessing ? "Processing..." : "Process Batch"}

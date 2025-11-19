@@ -18,52 +18,98 @@ def detect_ambiguities(tokens, skeleton_tokens):
         skeleton_tokens (list): Corresponding skeleton tokens
         
     Returns:
-        list: List of ambiguity information tuples
+        tuple: (resolved_ambiguities, ambiguity_options)
+            - resolved_ambiguities: List of resolved ambiguity info tuples (position, skeleton_code, resolved_value)
+            - ambiguity_options: Dict mapping token position to list of option strings
     """
     ambiguities = []
+    ambiguity_options = {}
     
     for i_token, token in enumerate(tokens):
         if i_token >= len(skeleton_tokens):
             continue
         
         questions = set()
-        # Find matching skeleton code for this position
-        for key in ENGLISH_DATE_DICT.keys():
-            from .constants import SKELETON_CODES
-            if skeleton_tokens[i_token] == SKELETON_CODES.get(key):
-                # Check if this token appears multiple times in the date dictionary (case-insensitive)
-                if key in ENGLISH_DATE_DICT:
-                    lowercase_count = sum(1 for item in ENGLISH_DATE_DICT[key] if item.lower() == token.lower())
-                    if lowercase_count > 1:
-                        # Generate disambiguation options using wide format
-                        for j in range(len(ENGLISH_DATE_DICT[key])):
-                            if ENGLISH_DATE_DICT[key][j].lower() == token.lower():
-                                nkey = key.split("_")[0] + "_wid_" + key.split("_")[2]
-                                if nkey in ENGLISH_DATE_DICT:
-                                    question = (ENGLISH_DATE_DICT[nkey][j], j)
-                                    questions.add(question)
+        from .constants import SKELETON_CODES
+        skeleton_code = skeleton_tokens[i_token]
         
-        # Present disambiguation options to user
+        # For standalone single-token inputs, check ALL possible standalone skeleton codes
+        # (not just the chosen one) to catch cross-category ambiguities (month vs day)
+        is_standalone_single_token = len(tokens) == 1
+        
+        matching_keys = []
+        if is_standalone_single_token:
+            # Check all standalone keys that contain this token, regardless of skeleton code
+            # This catches cases like "F" (February vs Friday) or "M" (March/May vs Monday)
+            for key in ENGLISH_DATE_DICT.keys():
+                # Only check standalone keys for single-token inputs
+                if key.endswith("_sta"):
+                    if any(item.lower() == token.lower() for item in ENGLISH_DATE_DICT[key]):
+                        matching_keys.append(key)
+        else:
+            # For multi-token inputs, only check keys matching the chosen skeleton code
+            # This ensures we only check the appropriate context (format vs standalone)
+            for key in ENGLISH_DATE_DICT.keys():
+                if SKELETON_CODES.get(key) == skeleton_code:
+                    # Check if this token appears in this key
+                    if any(item.lower() == token.lower() for item in ENGLISH_DATE_DICT[key]):
+                        matching_keys.append(key)
+        
+        # Check for ambiguities: either multiple matches in same key, or matches in different keys
+        if len(matching_keys) > 1:
+            # Token matches multiple different keys (e.g., "F" matches both month and day)
+            # Each key may have a different skeleton code, so we need to track that
+            for key in matching_keys:
+                option_skeleton_code = SKELETON_CODES.get(key)
+                # Generate disambiguation options using wide format
+                for j in range(len(ENGLISH_DATE_DICT[key])):
+                    if ENGLISH_DATE_DICT[key][j].lower() == token.lower():
+                        nkey = key.split("_")[0] + "_wid_" + key.split("_")[2]
+                        if nkey in ENGLISH_DATE_DICT:
+                            # Store: (option_name, index, key, skeleton_code)
+                            question = (ENGLISH_DATE_DICT[nkey][j], j, key, option_skeleton_code)
+                            questions.add(question)
+        elif len(matching_keys) == 1:
+            # Token matches one key, check if it appears multiple times in that key
+            key = matching_keys[0]
+            option_skeleton_code = SKELETON_CODES.get(key)
+            lowercase_count = sum(1 for item in ENGLISH_DATE_DICT[key] if item.lower() == token.lower())
+            if lowercase_count > 1:
+                # Generate disambiguation options using wide format
+                for j in range(len(ENGLISH_DATE_DICT[key])):
+                    if ENGLISH_DATE_DICT[key][j].lower() == token.lower():
+                        nkey = key.split("_")[0] + "_wid_" + key.split("_")[2]
+                        if nkey in ENGLISH_DATE_DICT:
+                            # Store: (option_name, index, key, skeleton_code)
+                            question = (ENGLISH_DATE_DICT[nkey][j], j, key, option_skeleton_code)
+                            questions.add(question)
+        
+        # Store ambiguity options for user selection
+        # Format: {position: [{"name": "...", "skeleton_code": "..."}, ...]}
         if questions:
-            print(f"\nFor '{token}', do you mean:")
-            questions_list = list(questions)
-            for i, question in enumerate(questions_list):
-                print(f"{i+1}: {question[0]}")
+            questions_list = sorted(list(questions), key=lambda x: (x[3], x[2], x[1]))  # Sort by skeleton_code, key, then index
+            # Group by option name and skeleton code to handle cases where same name has different skeleton codes
+            option_map = {}  # Maps option_name -> skeleton_code
+            unique_options = []
+            for q in questions_list:
+                option_name = q[0]
+                option_skeleton = q[3]
+                # If same name appears with different skeleton codes, include both
+                if option_name not in option_map:
+                    option_map[option_name] = option_skeleton
+                    unique_options.append({"name": option_name, "skeleton_code": option_skeleton})
+                elif option_map[option_name] != option_skeleton:
+                    # Same name but different skeleton code - this shouldn't happen for month/day, but handle it
+                    unique_options.append({"name": option_name, "skeleton_code": option_skeleton})
             
-            while True:
-                try:
-                    ambig_answer = input(f"Enter a number 1-{len(questions_list)}: ")
-                    choice_index = int(ambig_answer)
-                    if 1 <= choice_index <= len(questions_list):
-                        ambig_info = (i_token, skeleton_tokens[i_token], questions_list[choice_index - 1][0])
-                        ambiguities.append(ambig_info)
-                        break
-                    else:
-                        print(f"'{ambig_answer}' is not a valid option. Please try again.")
-                except ValueError:
-                    print(f"'{ambig_answer}' is not a valid number. Please try again.")
+            ambiguity_options[i_token] = unique_options
+            # Auto-select the first option as default, but user can override
+            choice_index = 0
+            selected_option = unique_options[choice_index]
+            ambig_info = (i_token, selected_option["skeleton_code"], selected_option["name"])
+            ambiguities.append(ambig_info)
     
-    return ambiguities
+    return ambiguities, ambiguity_options
 
 
 def resolve_ambiguity_in_mapping(token, skeleton_code, ambiguities, date_dict, position):
@@ -132,9 +178,18 @@ def get_metadata_for_skeleton(eng_skeleton, ambiguities, english_df):
     # Try to get header and winning columns if they exist
     try:
         header = english_df['Header'].values.tolist()
-        winning = english_df['Winning'].values.tolist()
     except KeyError:
         header = []
+
+    translation_column = None
+    for candidate in ("Winning", "Translation"):
+        if candidate in english_df.columns:
+            translation_column = candidate
+            break
+
+    if translation_column:
+        winning = english_df[translation_column].values.tolist()
+    else:
         winning = []
     
     # Find metadata for the selected English skeleton - collect ALL instances

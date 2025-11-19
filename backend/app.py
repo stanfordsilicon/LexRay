@@ -23,7 +23,8 @@ from api_bridge import (
     map_to_target, 
     handle_batch_english, 
     handle_batch_cldr, 
-    handle_batch_noncldr
+    handle_batch_noncldr,
+    resolve_ambiguities_with_selections
 )
 
 app = FastAPI(title="LexRay API", version="1.0.0")
@@ -70,7 +71,10 @@ async def process_request(
     translation: str = Form(None),
     csv: UploadFile = File(None),
     pairs_csv: UploadFile = File(None),
-    elements_csv: UploadFile = File(None)
+    elements_csv: UploadFile = File(None),
+    english_skeleton: str = Form(None),
+    ambiguity_selections: str = Form(None),
+    ambiguity_options: str = Form(None)
 ):
     """Process various types of requests"""
     try:
@@ -85,11 +89,28 @@ async def process_request(
             
             try:
                 result = english_to_skeleton(english, cldr_path)
+                eng_skel = result[0] if result else "ERROR"
+                ambiguities = result[1] if len(result) > 1 else []
+                metainfo = result[2] if len(result) > 2 else []
+                ambiguity_options = result[3] if len(result) > 3 else {}
+                
+                # If there are ambiguity options, return them for user selection
+                if ambiguity_options:
+                    return {
+                        "success": True,
+                        "requires_ambiguity_resolution": True,
+                        "english_skeleton": eng_skel,
+                        "ambiguity_options": ambiguity_options,
+                        "ambiguities": ambiguities,
+                        "metadata": metainfo
+                    }
+                
                 return {
                     "success": True,
-                    "english_skeleton": result[0] if result else "ERROR",
-                    "ambiguities": result[1] if len(result) > 1 else [],
-                    "metadata": result[2] if len(result) > 2 else []
+                    "requires_ambiguity_resolution": False,
+                    "english_skeleton": eng_skel,
+                    "ambiguities": ambiguities,
+                    "metadata": metainfo
                 }
             except Exception as e:
                 error_msg = str(e)
@@ -99,6 +120,11 @@ async def process_request(
                         "error": f"Non-Latin characters detected: '{english}'. Please use English date formats like 'September 5, 2025' or '2025-09-05'.",
                         "suggestion": "Try converting to English format first, or use the CLDR language tab for non-English dates."
                     }
+                if "Invalid English skeleton generated" in error_msg:
+                    return {
+                        "success": False,
+                        "error": "Invalid input. Please re-enter."
+                    }
                 else:
                     raise HTTPException(status_code=500, detail=f"Processing error: {error_msg}")
         
@@ -107,7 +133,23 @@ async def process_request(
                 raise HTTPException(status_code=400, detail="English, language, and translation required")
             
             try:
-                eng_skel, ambiguities, metainfo = english_to_skeleton(english, cldr_path)
+                result = english_to_skeleton(english, cldr_path)
+                eng_skel = result[0]
+                ambiguities = result[1]
+                metainfo = result[2]
+                ambiguity_options = result[3] if len(result) > 3 else {}
+                
+                # If there are ambiguity options, return them for user selection
+                if ambiguity_options:
+                    return {
+                        "success": True,
+                        "requires_ambiguity_resolution": True,
+                        "english_skeleton": eng_skel,
+                        "ambiguity_options": ambiguity_options,
+                        "ambiguities": ambiguities,
+                        "metadata": metainfo
+                    }
+                
                 targets = map_to_target(language, translation, english, eng_skel, ambiguities, cldr_path)
                 
                 # Debug logging
@@ -158,11 +200,164 @@ async def process_request(
                 }
             except Exception as e:
                 error_msg = str(e)
+                if "Invalid English skeleton generated" in error_msg:
+                    return {
+                        "success": False,
+                        "error": "Invalid input. Please re-enter."
+                    }
                 return {
                     "success": False,
                     "error": f"CLDR processing failed: {error_msg}",
                     "suggestion": "Try using a different language or check if the translation is correct."
                 }
+        
+        elif mode == "resolve-ambiguity":
+            # Handle ambiguity resolution - for English-only mode
+            if not english:
+                raise HTTPException(status_code=400, detail="English text required")
+            
+            if not ambiguity_selections:
+                raise HTTPException(status_code=400, detail="Ambiguity selections required")
+            
+            if not english_skeleton:
+                raise HTTPException(status_code=400, detail="English skeleton required")
+            
+            import json
+            try:
+                ambiguity_selections_dict = json.loads(ambiguity_selections)
+                ambiguity_options_dict = json.loads(ambiguity_options) if ambiguity_options else {}
+            except:
+                raise HTTPException(status_code=400, detail="Invalid ambiguity selections format")
+            
+            # Resolve ambiguities with user selections
+            updated_skeleton, resolved_ambiguities, metainfo = resolve_ambiguities_with_selections(
+                english, english_skeleton, ambiguity_selections_dict, ambiguity_options_dict, cldr_path
+            )
+            
+            return {
+                "success": True,
+                "requires_ambiguity_resolution": False,
+                "english_skeleton": updated_skeleton,
+                "ambiguities": resolved_ambiguities,
+                "metadata": metainfo
+            }
+        
+        elif mode == "resolve-ambiguity-cldr":
+            # Handle ambiguity resolution for CLDR mode
+            if not all([english, language, translation]):
+                raise HTTPException(status_code=400, detail="English, language, and translation required")
+            
+            if not ambiguity_selections:
+                raise HTTPException(status_code=400, detail="Ambiguity selections required")
+            
+            if not english_skeleton:
+                raise HTTPException(status_code=400, detail="English skeleton required")
+            
+            import json
+            try:
+                ambiguity_selections_dict = json.loads(ambiguity_selections)
+                ambiguity_options_dict = json.loads(ambiguity_options) if ambiguity_options else {}
+            except:
+                raise HTTPException(status_code=400, detail="Invalid ambiguity selections format")
+            
+            # Resolve ambiguities with user selections
+            updated_skeleton, resolved_ambiguities, metainfo = resolve_ambiguities_with_selections(
+                english, english_skeleton, ambiguity_selections_dict, ambiguity_options_dict, cldr_path
+            )
+            
+            # Map to target language using the updated skeleton
+            targets = map_to_target(language, translation, english, updated_skeleton, resolved_ambiguities, cldr_path)
+            
+            if not targets or not isinstance(targets, list) or len(targets) == 0:
+                return {
+                    "success": False,
+                    "error": "Could not generate target skeleton. Please check that the translation matches the English date format.",
+                    "english_skeleton": english_skeleton,
+                    "target_skeletons": []
+                }
+            
+            valid_targets = []
+            for target in targets:
+                target_str = str(target)
+                if target_str and any(c.isprintable() or c in ['\n', '\r', '\t'] for c in target_str):
+                    if any(c.isalnum() or c in ["'", '"', " ", ",", "/", "-", ".", ":", ";"] for c in target_str):
+                        valid_targets.append(target_str)
+            
+            if not valid_targets:
+                valid_targets = [str(targets[0])] if targets else []
+            
+            return {
+                "success": True,
+                "english_skeleton": updated_skeleton,
+                "target_skeletons": valid_targets,
+                "xpath": metainfo[0][2][0] if metainfo and len(metainfo) > 0 and len(metainfo[0]) > 2 else ""
+            }
+        
+        elif mode == "resolve-ambiguity-noncldr":
+            # Handle ambiguity resolution for non-CLDR mode
+            if not all([english, language, translation]):
+                raise HTTPException(status_code=400, detail="English, language, and translation required")
+            
+            if not elements_csv or elements_csv.filename is None:
+                raise HTTPException(status_code=400, detail="Elements CSV file required")
+            
+            if not ambiguity_selections:
+                raise HTTPException(status_code=400, detail="Ambiguity selections required")
+            
+            if not english_skeleton:
+                raise HTTPException(status_code=400, detail="English skeleton required")
+            
+            import json
+            try:
+                ambiguity_selections_dict = json.loads(ambiguity_selections)
+                ambiguity_options_dict = json.loads(ambiguity_options) if ambiguity_options else {}
+            except:
+                raise HTTPException(status_code=400, detail="Invalid ambiguity selections format")
+            
+            # Save uploaded elements CSV temporarily
+            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as elements_tmp:
+                elements_content = await elements_csv.read()
+                elements_tmp.write(elements_content)
+                elements_path = elements_tmp.name
+            
+            try:
+                # Resolve ambiguities with user selections
+                updated_skeleton, resolved_ambiguities, metainfo = resolve_ambiguities_with_selections(
+                    english, english_skeleton, ambiguity_selections_dict, ambiguity_options_dict, cldr_path
+                )
+                
+                # Load elements CSV as DataFrame
+                elements_df = pd.read_csv(elements_path)
+                
+                # Map to target using the custom elements CSV and updated skeleton
+                targets = map_to_target(language, translation, english, updated_skeleton, resolved_ambiguities, cldr_path, target_df=elements_df)
+                
+                if not targets or not isinstance(targets, list) or len(targets) == 0:
+                    return {
+                        "success": False,
+                        "error": "Could not generate target skeleton. Please check that the translation matches the English date format and that the elements CSV contains the necessary date elements.",
+                        "english_skeleton": updated_skeleton,
+                        "target_skeletons": []
+                    }
+                
+                valid_targets = []
+                for target in targets:
+                    target_str = str(target)
+                    if target_str and any(c.isprintable() or c in ['\n', '\r', '\t'] for c in target_str):
+                        if any(c.isalnum() or c in ["'", '"', " ", ",", "/", "-", ".", ":", ";"] for c in target_str):
+                            valid_targets.append(target_str)
+                
+                if not valid_targets:
+                    valid_targets = [str(targets[0])] if targets else []
+                
+                return {
+                    "success": True,
+                    "english_skeleton": updated_skeleton,
+                    "target_skeletons": valid_targets,
+                    "xpath": metainfo[0][2][0] if metainfo and len(metainfo) > 0 and len(metainfo[0]) > 2 else ""
+                }
+            finally:
+                os.unlink(elements_path)
         
         elif mode == "single-new":
             if not all([english, language, translation]):
@@ -179,7 +374,22 @@ async def process_request(
             
             try:
                 # Get English skeleton
-                eng_skel, ambiguities, metainfo = english_to_skeleton(english, cldr_path)
+                result = english_to_skeleton(english, cldr_path)
+                eng_skel = result[0]
+                ambiguities = result[1]
+                metainfo = result[2]
+                ambiguity_options = result[3] if len(result) > 3 else {}
+                
+                # If there are ambiguity options, return them for user selection
+                if ambiguity_options:
+                    return {
+                        "success": True,
+                        "requires_ambiguity_resolution": True,
+                        "english_skeleton": eng_skel,
+                        "ambiguity_options": ambiguity_options,
+                        "ambiguities": ambiguities,
+                        "metadata": metainfo
+                    }
                 
                 # Load elements CSV as DataFrame
                 elements_df = pd.read_csv(elements_path)
@@ -216,6 +426,11 @@ async def process_request(
                 }
             except Exception as e:
                 error_msg = str(e)
+                if "Invalid English skeleton generated" in error_msg:
+                    return {
+                        "success": False,
+                        "error": "Invalid input. Please re-enter."
+                    }
                 return {
                     "success": False,
                     "error": f"Processing failed: {error_msg}",

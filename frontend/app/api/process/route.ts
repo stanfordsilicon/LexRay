@@ -41,13 +41,16 @@ export async function POST(req: Request) {
       
       // Forward the request to the backend API
       const result = await callBackendAPI(form);
+      if ("error" in result && typeof result.error === "string" && result.error.length > 0) {
+        return NextResponse.json({ error: "Invalid input. Please re-enter." }, { status: 400 });
+      }
       return NextResponse.json(result);
     }
 
     // Fallback
     return NextResponse.json({ error: "Unsupported content type" }, { status: 400 });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || String(e) }, { status: 500 });
+    return NextResponse.json({ error: "Invalid input. Please re-enter." }, { status: 400 });
   }
 }
 

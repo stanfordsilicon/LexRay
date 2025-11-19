@@ -32,8 +32,11 @@ def validate_tokens(tokens, expression_name="expression"):
                 raise ValueError(f"'{token}' is not a valid element. Please rerun {expression_name} before continuing.")
 
         elif token in PUNCTUATION:
-            # Punctuation cannot be at start/end or consecutive
-            if i == 0 or i == len(tokens) - 1:
+            end_allowed = {".", "'", "’"}
+            # Punctuation cannot be at start or consecutive; allow certain punctuation at end (e.g., abbreviations)
+            if i == 0:
+                raise ValueError(f"'{' '.join(tokens)}' is not a valid expression. Please rerun {expression_name} before continuing.")
+            if i == len(tokens) - 1 and token not in end_allowed:
                 raise ValueError(f"'{' '.join(tokens)}' is not a valid expression. Please rerun {expression_name} before continuing.")
             if i > 0 and tokens[i-1] in PUNCTUATION:
                 raise ValueError(f"'{' '.join(tokens)}' has consecutive punctuation. Please rerun {expression_name} before continuing.")

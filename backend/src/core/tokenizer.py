@@ -23,11 +23,10 @@ def normalize_dashes(expression):
     # Normalize various dash types to standard forms
     normalized = expression
     # Convert em dash to en dash for consistency
-    normalized = normalized.replace('—', '–')
-    # Convert thin space + en dash to just en dash
-    normalized = normalized.replace(' – ', '–')
-    # Convert multiple spaces around dashes to single space
-    normalized = regex.sub(r'\s*–\s*', '–', normalized)
+    normalized = normalized.replace('—', '-').replace('−', '-')
+    normalized = normalized.replace('–', '-')
+    normalized = regex.sub(r'\s*-\s*', '-', normalized)
+    normalized = normalized.replace('-', ' - ')
     return normalized
 
 

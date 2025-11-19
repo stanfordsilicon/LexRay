@@ -39,7 +39,11 @@ from src.core.skeleton_analyzer import (
 )
 from src.core.ambiguity_resolver import detect_ambiguities, get_metadata_for_skeleton
 from src.core.cross_language_mapper import map_english_to_target_skeleton
-from src.core.constants import ENGLISH_DATE_DICT
+from src.core.constants import (
+    ENGLISH_DATE_DICT,
+    VALID_ENGLISH_SKELETONS,
+    normalize_english_skeleton,
+)
 
 
 def english_to_skeleton(english_text: str, cldr_path: str):
@@ -76,43 +80,23 @@ def english_to_skeleton(english_text: str, cldr_path: str):
         # Handle range expressions that might not have exact CLDR matches
         else:
             # Create a comprehensive range pattern mapping
+            def skeleton_signature(value: str):
+                tokens = tokenize_date_expression(value.replace('–', '-'))
+                return [t for t in tokens if t.strip()]
+
             def find_best_range_match(pattern, english_values):
-                """Find the best matching range pattern in CLDR data"""
-                # Normalize the pattern for comparison
-                normalized_pattern = pattern.replace('-', ' – ')
-                
-                # Direct match
-                if normalized_pattern in english_values:
-                    return normalized_pattern
-                
-                # Try to find a pattern with the same structure but different spacing
+                """Find the best matching range pattern in CLDR data."""
+                pattern_sig = skeleton_signature(pattern)
+                pattern_normalized = pattern.replace('-', ' – ')
+
+                # Exact structural match (including dash type differences)
                 for value in english_values:
-                    if '–' in value:
-                        # Compare structure by removing spaces and dashes
-                        pattern_clean = ''.join(pattern.replace('-', '').replace('–', '').split())
-                        value_clean = ''.join(value.replace('-', '').replace('–', '').split())
-                        if pattern_clean == value_clean:
-                            return value
-                
-                # Try to find a pattern with similar structure
-                pattern_parts = pattern.replace('-', ' – ').split(' – ')
-                if len(pattern_parts) == 2:
-                    left, right = pattern_parts
-                    
-                    # Look for patterns with the same left side
-                    for value in english_values:
-                        if '–' in value:
-                            value_parts = value.split(' – ')
-                            if len(value_parts) == 2 and value_parts[0].strip() == left.strip():
-                                return value
-                    
-                    # Look for patterns with the same right side
-                    for value in english_values:
-                        if '–' in value:
-                            value_parts = value.split(' – ')
-                            if len(value_parts) == 2 and value_parts[1].strip() == right.strip():
-                                return value
-                
+                    if skeleton_signature(value) == pattern_sig:
+                        return value
+
+                    if skeleton_signature(value) == skeleton_signature(pattern_normalized):
+                        return value
+
                 return None
             
             # Try to find matches for each expanded option
@@ -123,13 +107,70 @@ def english_to_skeleton(english_text: str, cldr_path: str):
                     break
     
     if not confirmed:
-        raise ValueError(f"No official CLDR skeleton for '{english_text}'.")
+        if expanded_options:
+            # Fall back to the most specific skeleton we generated
+            confirmed = [expanded_options[0].replace('-', '–')]
+        else:
+            raise ValueError(f"No official CLDR skeleton for '{english_text}'.")
 
     chosen = confirmed[0]
+
+    normalized_chosen = normalize_english_skeleton(chosen)
+    if normalized_chosen not in VALID_ENGLISH_SKELETONS:
+        raise ValueError("Invalid English skeleton generated (unsupported pattern).")
     english_skeleton_tokens = tokenize_date_expression(chosen)
-    ambiguities = detect_ambiguities(english_tokens, english_skeleton_tokens)
+    ambiguities, ambiguity_options = detect_ambiguities(english_tokens, english_skeleton_tokens)
     metainfo = get_metadata_for_skeleton(chosen, ambiguities, english_df)
-    return chosen, ambiguities, metainfo
+    return chosen, ambiguities, metainfo, ambiguity_options
+
+
+def resolve_ambiguities_with_selections(english_text: str, english_skeleton: str, ambiguity_selections: dict, ambiguity_options: dict, cldr_path: str):
+    """
+    Resolve ambiguities with user-selected options and return updated ambiguities and skeleton.
+    
+    Args:
+        english_text: Original English text
+        english_skeleton: Original English skeleton pattern (may need to be updated)
+        ambiguity_selections: Dict mapping token position to selected option name
+        ambiguity_options: Dict mapping token position to list of option dicts with name and skeleton_code
+        cldr_path: Path to CLDR data
+        
+    Returns:
+        tuple: (updated_skeleton, updated_ambiguities, metainfo)
+    """
+    from src.core.tokenizer import tokenize_date_expression
+    english_tokens = tokenize_date_expression(english_text)
+    english_skeleton_tokens = list(tokenize_date_expression(english_skeleton))
+    
+    # Build resolved ambiguities from user selections and update skeleton codes
+    resolved_ambiguities = []
+    for position, selected_option_name in ambiguity_selections.items():
+        pos = int(position)
+        if pos < len(english_skeleton_tokens) and pos in ambiguity_options:
+            # Find the selected option to get its skeleton code
+            selected_option = None
+            for option in ambiguity_options[pos]:
+                if option.get("name") == selected_option_name:
+                    selected_option = option
+                    break
+            
+            if selected_option:
+                # Update the skeleton code for this position
+                new_skeleton_code = selected_option.get("skeleton_code")
+                if new_skeleton_code:
+                    english_skeleton_tokens[pos] = new_skeleton_code
+                resolved_ambiguities.append((pos, english_skeleton_tokens[pos], selected_option_name))
+            else:
+                # Fallback: use original skeleton code
+                resolved_ambiguities.append((pos, english_skeleton_tokens[pos], selected_option_name))
+    
+    # Reconstruct the skeleton string
+    updated_skeleton = "".join(english_skeleton_tokens)
+    
+    english_df = load_english_reference_data(cldr_path)
+    metainfo = get_metadata_for_skeleton(updated_skeleton, resolved_ambiguities, english_df)
+    
+    return updated_skeleton, resolved_ambiguities, metainfo
 
 
 def map_to_target(language: str, translation: str, english_text: str, english_skeleton: str, ambiguities, cldr_path: str, target_df: pd.DataFrame | None = None):
@@ -148,18 +189,27 @@ def map_to_target(language: str, translation: str, english_text: str, english_sk
 
 
 def handle_single_english(args):
-    eng, ambiguities, meta = english_to_skeleton(args.english, args.cldr_path)
+    result = english_to_skeleton(args.english, args.cldr_path)
+    eng = result[0]
+    ambiguities = result[1]
+    meta = result[2]
     return {"mode": "english", "english_skeleton": eng, "meta": meta}
 
 
 def handle_single_cldr(args):
-    eng, ambiguities, meta = english_to_skeleton(args.english, args.cldr_path)
+    result = english_to_skeleton(args.english, args.cldr_path)
+    eng = result[0]
+    ambiguities = result[1]
+    meta = result[2]
     targets = map_to_target(args.language, args.translation, args.english, eng, ambiguities, args.cldr_path)
     return {"mode": "cldr", "english_skeleton": eng, "target_skeletons": targets, "language": args.language}
 
 
 def handle_single_new(args):
-    eng, ambiguities, meta = english_to_skeleton(args.english, args.cldr_path)
+    result = english_to_skeleton(args.english, args.cldr_path)
+    eng = result[0]
+    ambiguities = result[1]
+    meta = result[2]
     df = pd.read_csv(args.elements_csv)
     targets = map_to_target(args.language, args.translation, args.english, eng, ambiguities, args.cldr_path, target_df=df)
     return {"mode": "new", "english_skeleton": eng, "target_skeletons": targets, "language": args.language}
@@ -182,7 +232,8 @@ def handle_batch_english(args):
                     continue
                 
                 try:
-                    eng_skel, _, _ = english_to_skeleton(text, args.cldr_path)
+                    result = english_to_skeleton(text, args.cldr_path)
+                    eng_skel = result[0]
                     writer.writerow({"ENGLISH": text, "ENGLISH_SKELETON": eng_skel})
                 except Exception as e:
                     # Put ERROR for this specific row
@@ -215,7 +266,9 @@ def handle_batch_cldr(args):
                     continue
                 
                 try:
-                    eng_skel, ambiguities, _ = english_to_skeleton(english, args.cldr_path)
+                    result = english_to_skeleton(english, args.cldr_path)
+                    eng_skel = result[0]
+                    ambiguities = result[1]
                     targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path)
                     writer.writerow({
                         "ENGLISH": english,
@@ -263,7 +316,9 @@ def handle_batch_noncldr(args):
                     continue
                 
                 try:
-                    eng_skel, ambiguities, _ = english_to_skeleton(english, args.cldr_path)
+                    result = english_to_skeleton(english, args.cldr_path)
+                    eng_skel = result[0]
+                    ambiguities = result[1]
                     targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path, target_df=df)
                     writer.writerow({
                         "ENGLISH": english,

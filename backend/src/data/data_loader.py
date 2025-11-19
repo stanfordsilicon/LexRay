@@ -132,22 +132,23 @@ def populate_target_language_dict(tlang_df):
                 # Find matching translations in the dataset
                 date_structure = f"{elem_type} - {length} - {elem_context}"
                 matching_rows = tlang_df[tlang_df['Header'] == date_structure]
-                winning_values = matching_rows["Winning"].dropna().tolist()  # Remove NaN values
+                column_name = "Translation" if "Translation" in matching_rows.columns else "Winning"
+                translations = matching_rows[column_name].dropna().tolist()  # Remove NaN values
                 
                 # Limit to expected number of items (12 months, 7 days)
                 max_items = 12 if elem_type == "Months" else 7
-                winning_values = winning_values[:max_items]
+                translations = translations[:max_items]
                 
                 # Add to lexicon and dictionary
-                lexicon.extend(winning_values)
+                lexicon.extend(translations)
                 
                 # Also add lowercase versions for case-insensitive matching
-                lexicon.extend([val.lower() for val in winning_values if isinstance(val, str)])
+                lexicon.extend([val.lower() for val in translations if isinstance(val, str)])
                 
                 # Generate dictionary key (e.g., "mon_nar_for", "day_wid_sta")
                 date_dict_key = f"{elem_type.lower()[:3]}_{length[:3]}_{elem_context.lower()[:3]}"
-                date_dict[date_dict_key] = winning_values
+                date_dict[date_dict_key] = translations
                 
-                print(f"{date_structure}: {winning_values}")
+                print(f"{date_structure}: {translations}")
     
     return date_dict, lexicon 

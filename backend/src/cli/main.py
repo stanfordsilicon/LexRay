@@ -181,7 +181,7 @@ def process_english_expression(eng_equivalent, base_path):
     
     # Handle ambiguities
     english_skeleton_tokenized = tokenize_date_expression(eng_skeleton)
-    ambiguities = detect_ambiguities(english_tokenized, english_skeleton_tokenized)
+    ambiguities, ambiguity_options = detect_ambiguities(english_tokenized, english_skeleton_tokenized)
     
     # Get metadata
     metainfo = get_metadata_for_skeleton(eng_skeleton, ambiguities, english_df)
