@@ -104,10 +104,10 @@ export default function SingleIngestion() {
         setError(null);
         setResults(null);
       }}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
         activeTab === tab
-          ? "bg-indigo-200 text-indigo-900"
-          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          ? "bg-white text-slate-900 shadow-lg shadow-blue-500/30"
+          : "bg-white/5 text-slate-300 hover:bg-white/10"
       }`}
     >
       {label}
@@ -162,7 +162,7 @@ export default function SingleIngestion() {
                   </label>
                   <select
                     id="existingLang"
-                    value={selectedExistingLanguage}
+                  value={selectedExistingLanguage}
                     onChange={(e) => setSelectedExistingLanguage(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
@@ -246,59 +246,48 @@ export default function SingleIngestion() {
           </form>
 
           {results && !results.error && (
-            <div className="mt-6 p-6 bg-gray-50 rounded-md text-sm text-gray-800 min-h-[200px] w-full max-w-6xl">
+            <div className="mt-6 space-y-3 text-sm text-gray-800">
               {results.mode === "english" ? (
                 <div>
-                  <div className="mb-2 font-medium text-gray-900">English skeleton:</div>
-                  <div className="text-sm text-gray-800">
-                    <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm">
-                      {results.english_skeleton}
-                    </div>
-                  </div>
+                  <div className="mb-1 font-medium text-gray-900">English skeleton:</div>
+                  <code className="block font-mono text-gray-900">{results.english_skeleton}</code>
                 </div>
               ) : (
                 <div>
-                  <div className="mb-2 font-medium text-gray-900">Target skeletons:</div>
-                  <div className="text-sm text-gray-800">
-                    {Array.isArray(results.target_skeletons) ? (
-                      <div className="space-y-1">
-                        {results.target_skeletons.map((skeleton: string, index: number) => (
-                          <div
-                            key={index}
-                            className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm whitespace-nowrap overflow-x-auto"
-                            title={`Skeleton option ${index + 1}`}
-                          >
-                            {skeleton}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      // Handle string format (comma-separated options)
-                      (() => {
-                        const skeletonText = String(results.target_skeletons);
-                        const options = skeletonText.split('; ').map(opt => opt.trim()).filter(opt => opt);
-                        
-                        // The backend should be sending complete skeleton options separated by ", "
-                        // Each option should be a complete skeleton like "EEE, MMM d, y" or "MMM d, y"
-                        // Don't split these further - treat each as a complete skeleton
-                        const finalOptions = options;
-                        
-                        return (
-                          <div className="space-y-1">
-                            {finalOptions.map((skeleton: string, index: number) => (
-                              <div
-                                key={index}
-                                className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm whitespace-nowrap overflow-x-auto"
-                                title={`Skeleton option ${index + 1}`}
-                              >
-                                {skeleton}
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()
-                    )}
-                  </div>
+                  <div className="mb-1 font-medium text-gray-900">Target skeletons:</div>
+                  {Array.isArray(results.target_skeletons) ? (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {results.target_skeletons.map((skeleton: string, index: number) => (
+                        <code
+                          key={index}
+                          className="font-mono text-gray-900"
+                          title={`Skeleton option ${index + 1}`}
+                        >
+                          {skeleton}
+                        </code>
+                      ))}
+                    </div>
+                  ) : (
+                    (() => {
+                      const skeletonText = String(results.target_skeletons);
+                      const options = skeletonText.split("; ").map((opt) => opt.trim()).filter((opt) => opt);
+                      const finalOptions = options;
+
+                      return (
+                        <div className="flex flex-wrap gap-x-4 gap-y-1">
+                          {finalOptions.map((skeleton: string, index: number) => (
+                            <code
+                              key={index}
+                              className="font-mono text-gray-900"
+                              title={`Skeleton option ${index + 1}`}
+                            >
+                              {skeleton}
+                            </code>
+                          ))}
+                        </div>
+                      );
+                    })()
+                  )}
                 </div>
               )}
             </div>
