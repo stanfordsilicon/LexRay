@@ -153,9 +153,11 @@ def english_to_skeleton(english_text: str, cldr_path: str, english_df=None, engl
         english_df = load_english_reference_data(cldr_path)
     if english_values is None:
         english_values = english_df['English'].dropna().values.tolist()
-    
-    # Clean thin spaces from the values for comparison
-    english_values = [val.replace('\u2009', ' ') if isinstance(val, str) else val for val in english_values]
+        # Clean thin spaces from the values for comparison (only do this once when loading)
+        english_values = [val.replace('\u2009', ' ') if isinstance(val, str) else val for val in english_values]
+    else:
+        # If using cached values, make sure they're already cleaned (they should be)
+        pass
     
     # First try exact matches
     confirmed = [opt for opt in expanded_options if opt in english_values or len(set(opt.lower())) == 1]
@@ -377,13 +379,19 @@ def handle_batch_cldr(args):
     try:
         # Load data once at the start for performance
         print("Loading CLDR data...")
-        english_df = load_english_reference_data(args.cldr_path)
-        english_values = english_df['English'].dropna().values.tolist()
-        english_values = [val.replace('\u2009', ' ') if isinstance(val, str) else val for val in english_values]
-        
-        target_df = load_target_language_data(args.cldr_path, args.language)
-        target_date_dict, target_lexicon = populate_target_language_dict(target_df)
-        print("CLDR data loaded successfully")
+        try:
+            english_df = load_english_reference_data(args.cldr_path)
+            english_values = english_df['English'].dropna().values.tolist()
+            english_values = [val.replace('\u2009', ' ') if isinstance(val, str) else val for val in english_values]
+            
+            target_df = load_target_language_data(args.cldr_path, args.language)
+            target_date_dict, target_lexicon = populate_target_language_dict(target_df)
+            print("CLDR data loaded successfully")
+        except Exception as load_error:
+            print(f"Error loading CLDR data: {load_error}")
+            import traceback
+            traceback.print_exc()
+            raise
         
         print(f"Opening CSV file: {args.csv}")
         with open(args.csv, "r", encoding="utf-8") as f:
