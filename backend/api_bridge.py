@@ -347,21 +347,28 @@ def handle_batch_english(args):
 
 
 def handle_batch_cldr(args):
+    print(f"Starting batch CLDR processing for language: {args.language}")
     out = io.StringIO()
     writer = csv.DictWriter(out, fieldnames=["ENGLISH", "TARGET", "ENGLISH_SKELETON", "TARGET_SKELETON", "Xpstr"]) 
     writer.writeheader()
     
     try:
+        print(f"Opening CSV file: {args.csv}")
         with open(args.csv, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             if 'ENGLISH' not in reader.fieldnames or 'TARGET' not in reader.fieldnames:
                 raise ValueError("CSV must contain ENGLISH and TARGET columns. Please use the English, translation pairs template.")
             
+            row_count = 0
             for row_num, row in enumerate(reader, start=2):  # Start at 2 since row 1 is header
                 english = (row.get('ENGLISH') or '').strip()
                 target = (row.get('TARGET') or '').strip()
                 if not english or not target:
                     continue
+                
+                row_count += 1
+                if row_count % 10 == 0:
+                    print(f"Processing row {row_num}...")
                 
                 try:
                     result = english_to_skeleton(english, args.cldr_path)
@@ -393,6 +400,8 @@ def handle_batch_cldr(args):
                         "TARGET_SKELETON": "ERROR",
                         "Xpstr": ""
                     })
+            
+            print(f"Completed processing {row_count} rows")
                     
     except Exception as e:
         if "CSV must contain" in str(e):

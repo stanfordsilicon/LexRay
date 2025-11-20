@@ -13,19 +13,34 @@ const getBackendUrl = () => {
 async function callBackendAPI(formData: FormData) {
   const backendUrl = getBackendUrl();
   
+  // Add timeout for batch processing (90 seconds for Render free tier)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+  
   try {
     const response = await fetch(`${backendUrl}/api/process`, {
       method: 'POST',
       body: formData,
+      signal: controller.signal,
     });
     
+    clearTimeout(timeoutId);
+    
     if (!response.ok) {
-      throw new Error(`Backend API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Backend API error:', response.status, errorText);
+      throw new Error(`Backend API error: ${response.status} - ${errorText}`);
     }
     
     return await response.json();
   } catch (error) {
+    clearTimeout(timeoutId);
     console.error('Backend API call failed:', error);
+    if (error instanceof Error && error.name === 'AbortError') {
+      return { 
+        error: 'Request timed out. The batch processing is taking too long. Please try with a smaller file or check the backend logs.' 
+      };
+    }
     return { 
       error: `Backend API unavailable: ${error instanceof Error ? error.message : 'Unknown error'}` 
     };
