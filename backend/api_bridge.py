@@ -137,7 +137,7 @@ def get_xpstr_from_skeleton(english_skeleton: str) -> str:
         return ""
 
 
-def english_to_skeleton(english_text: str, cldr_path: str):
+def english_to_skeleton(english_text: str, cldr_path: str, english_df=None, english_values=None):
     english_tokens = tokenize_date_expression(english_text)
     validate_tokens(english_tokens, "English string")
     validate_english_tokens(english_tokens, english_text)
@@ -148,8 +148,11 @@ def english_to_skeleton(english_text: str, cldr_path: str):
     string_options = format_skeleton_strings(skeleton_options)
     expanded_options = expand_dash_variations(string_options)
 
-    english_df = load_english_reference_data(cldr_path)
-    english_values = english_df['English'].dropna().values.tolist()
+    # Use cached data if provided, otherwise load it
+    if english_df is None:
+        english_df = load_english_reference_data(cldr_path)
+    if english_values is None:
+        english_values = english_df['English'].dropna().values.tolist()
     
     # Clean thin spaces from the values for comparison
     english_values = [val.replace('\u2009', ' ') if isinstance(val, str) else val for val in english_values]
@@ -264,13 +267,16 @@ def resolve_ambiguities_with_selections(english_text: str, english_skeleton: str
     return updated_skeleton, resolved_ambiguities, metainfo
 
 
-def map_to_target(language: str, translation: str, english_text: str, english_skeleton: str, ambiguities, cldr_path: str, target_df: pd.DataFrame | None = None):
+def map_to_target(language: str, translation: str, english_text: str, english_skeleton: str, ambiguities, cldr_path: str, target_df: pd.DataFrame | None = None, date_dict: dict | None = None, lexicon: list | None = None):
+    # Use cached data if provided, otherwise load it
     if target_df is None:
         df = load_target_language_data(cldr_path, language)
     else:
         df = target_df
+    
+    if date_dict is None or lexicon is None:
+        date_dict, lexicon = populate_target_language_dict(df)
 
-    date_dict, lexicon = populate_target_language_dict(df)
     target_tokens = semantic_tokenize(translation, date_dict, lexicon)
     validate_tokens(target_tokens, "Target language string")
     english_tokens = tokenize_date_expression(english_text)
@@ -307,23 +313,37 @@ def handle_single_new(args):
 
 
 def handle_batch_english(args):
+    print("Starting batch English processing")
     out = io.StringIO()
     writer = csv.DictWriter(out, fieldnames=["ENGLISH", "ENGLISH_SKELETON", "Xpstr"]) 
     writer.writeheader()
     
     try:
+        # Load data once at the start for performance
+        print("Loading English CLDR data...")
+        english_df = load_english_reference_data(args.cldr_path)
+        english_values = english_df['English'].dropna().values.tolist()
+        english_values = [val.replace('\u2009', ' ') if isinstance(val, str) else val for val in english_values]
+        print("English CLDR data loaded successfully")
+        
         with open(args.csv, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             if 'ENGLISH' not in reader.fieldnames:
                 raise ValueError("CSV must contain ENGLISH column. Please use the English list template.")
             
+            row_count = 0
             for row_num, row in enumerate(reader, start=2):  # Start at 2 since row 1 is header
                 text = (row.get('ENGLISH') or '').strip()
                 if not text:
                     continue
                 
+                row_count += 1
+                if row_count % 10 == 0:
+                    print(f"Processing row {row_num}...")
+                
                 try:
-                    result = english_to_skeleton(text, args.cldr_path)
+                    # Use cached data
+                    result = english_to_skeleton(text, args.cldr_path, english_df=english_df, english_values=english_values)
                     eng_skel = result[0]
                     try:
                         xpstr = get_xpstr_from_skeleton(eng_skel)
@@ -336,6 +356,8 @@ def handle_batch_english(args):
                     # Put ERROR for this specific row
                     print(f"Error processing row {row_num}: {text}: {str(e)}")
                     writer.writerow({"ENGLISH": text, "ENGLISH_SKELETON": "ERROR", "Xpstr": ""})
+            
+            print(f"Completed processing {row_count} rows")
                     
     except Exception as e:
         if "CSV must contain" in str(e):
@@ -353,6 +375,16 @@ def handle_batch_cldr(args):
     writer.writeheader()
     
     try:
+        # Load data once at the start for performance
+        print("Loading CLDR data...")
+        english_df = load_english_reference_data(args.cldr_path)
+        english_values = english_df['English'].dropna().values.tolist()
+        english_values = [val.replace('\u2009', ' ') if isinstance(val, str) else val for val in english_values]
+        
+        target_df = load_target_language_data(args.cldr_path, args.language)
+        target_date_dict, target_lexicon = populate_target_language_dict(target_df)
+        print("CLDR data loaded successfully")
+        
         print(f"Opening CSV file: {args.csv}")
         with open(args.csv, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -371,10 +403,12 @@ def handle_batch_cldr(args):
                     print(f"Processing row {row_num}...")
                 
                 try:
-                    result = english_to_skeleton(english, args.cldr_path)
+                    # Use cached data
+                    result = english_to_skeleton(english, args.cldr_path, english_df=english_df, english_values=english_values)
                     eng_skel = result[0]
                     ambiguities = result[1]
-                    targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path)
+                    targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path, 
+                                           target_df=target_df, date_dict=target_date_dict, lexicon=target_lexicon)
                     try:
                         xpstr = get_xpstr_from_skeleton(eng_skel)
                     except Exception as xpstr_error:
@@ -413,30 +447,46 @@ def handle_batch_cldr(args):
 
 
 def handle_batch_noncldr(args):
+    print(f"Starting batch Non-CLDR processing for language: {args.language}")
     out = io.StringIO()
     writer = csv.DictWriter(out, fieldnames=["ENGLISH", "TARGET", "ENGLISH_SKELETON", "TARGET_SKELETON", "Xpstr"]) 
     writer.writeheader()
     
     try:
+        # Load data once at the start for performance
+        print("Loading CLDR data...")
+        english_df = load_english_reference_data(args.cldr_path)
+        english_values = english_df['English'].dropna().values.tolist()
+        english_values = [val.replace('\u2009', ' ') if isinstance(val, str) else val for val in english_values]
+        
         # Load the custom date elements
         df = pd.read_csv(args.elements_csv)
+        target_date_dict, target_lexicon = populate_target_language_dict(df)
+        print("Data loaded successfully")
         
         with open(args.pairs_csv, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             if 'ENGLISH' not in reader.fieldnames or 'TARGET' not in reader.fieldnames:
                 raise ValueError("Pairs CSV must contain ENGLISH and TARGET columns. Please use the English, translation pairs template.")
             
+            row_count = 0
             for row_num, row in enumerate(reader, start=2):  # Start at 2 since row 1 is header
                 english = (row.get('ENGLISH') or '').strip()
                 target = (row.get('TARGET') or '').strip()
                 if not english or not target:
                     continue
                 
+                row_count += 1
+                if row_count % 10 == 0:
+                    print(f"Processing row {row_num}...")
+                
                 try:
-                    result = english_to_skeleton(english, args.cldr_path)
+                    # Use cached data
+                    result = english_to_skeleton(english, args.cldr_path, english_df=english_df, english_values=english_values)
                     eng_skel = result[0]
                     ambiguities = result[1]
-                    targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path, target_df=df)
+                    targets = map_to_target(args.language, target, english, eng_skel, ambiguities, args.cldr_path, 
+                                           target_df=df, date_dict=target_date_dict, lexicon=target_lexicon)
                     try:
                         xpstr = get_xpstr_from_skeleton(eng_skel)
                     except Exception as xpstr_error:
